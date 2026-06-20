@@ -1,22 +1,20 @@
-import * as Brevo from "@getbrevo/brevo";
+import * as brevo from "@getbrevo/brevo";
 import { config } from "../config/config.js";
 
-const apiInstance = new Brevo.TransactionalEmailsApi();
+// correct way (IMPORTANT)
+const apiInstance = new brevo.TransactionalEmailsApi();
 
 apiInstance.setApiKey(
-  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  brevo.TransactionalEmailsApiApiKeys.apiKey,
   config.BREVO_API_KEY
 );
 
-console.log("✅ Brevo API mailer is ready");
+console.log("✅ Brevo API mailer ready");
 
-export const sendEmail = async ({
-  to,
-  subject,
-  htmlContent,
-}) => {
+// ================= SEND EMAIL =================
+export const sendEmail = async ({ to, subject, htmlContent }) => {
   try {
-    const email = new Brevo.SendSmtpEmail();
+    const email = new brevo.SendSmtpEmail();
 
     email.sender = {
       name: config.SENDER_NAME || "Snitch",
@@ -29,13 +27,10 @@ export const sendEmail = async ({
 
     const response = await apiInstance.sendTransacEmail(email);
 
-    console.log("✅ Email sent:", response);
+    console.log("📧 Email sent successfully");
     return response;
   } catch (error) {
-    console.error(
-      "❌ Brevo API Error:",
-      error.response?.body || error.message
-    );
+    console.error("❌ Brevo Error:", error.body || error.message);
     throw error;
   }
 };
