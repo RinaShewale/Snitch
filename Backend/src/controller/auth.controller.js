@@ -130,7 +130,7 @@ export const loginUser = async (req, res) => {
 export const googleCallback = (req, res) => {
   try {
     if (!req.user) {
-      return res.redirect("http://localhost:5173/login?error=oauth_failed");
+      return res.redirect("https://snitch-fwb7.onrender.com/login?error=oauth_failed");
     }
 
     const token = generateToken(req.user._id);
@@ -143,9 +143,9 @@ export const googleCallback = (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.redirect("http://localhost:5173/");
+    return res.redirect("https://snitch-fwb7.onrender.com/");
   } catch (error) {
-    return res.redirect("http://localhost:5173/login?error=server_error");
+    return res.redirect("https://snitch-fwb7.onrender.com/login?error=server_error");
   }
 };
 
@@ -190,7 +190,7 @@ export const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const resetLink = `http://localhost:5173/reset-password/${token}`;
+    const resetLink = `https://snitch-fwb7.onrender.com/reset-password/${token}`;
 
     await transporter.sendMail({
       to: email,

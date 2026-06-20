@@ -14,7 +14,7 @@ export const login = async (data) => {
 
 // GOOGLE LOGIN
 export const googleLogin = () => {
-  window.location.href = "https://snitch-e-commerce.onrender.com/api/auth/google";
+  window.location.href = "https://snitch-fwb7.onrender.com/api/auth/google";
 };
 
 // ⭐ FIXED PROFILE (NO manual headers needed if API uses interceptor)

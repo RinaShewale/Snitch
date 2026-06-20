@@ -23,8 +23,8 @@ const app = express();
 // ======================
 app.use(cors({
   origin: [
+    "https://snitch-fwb7.onrender.com",
     "http://localhost:5173",
-    "https://your-app-name.onrender.com"
   ],
   credentials: true
 }));
