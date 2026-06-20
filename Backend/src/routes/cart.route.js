@@ -9,6 +9,7 @@ import {
   removeFromCart,
   createOrderController,
   verifyOrderController,
+  createDirectOrderController,
 } from "../controller/cart.controller.js";
 
 // Validators
@@ -76,6 +77,17 @@ router.post(
   "/checkout",
   protect,
   createOrderController
+);
+
+
+
+/* =================================
+   ⚡ DIRECT PRODUCT CHECKOUT (BUY NOW)
+================================= */
+router.post(
+  "/checkout/direct",
+  protect,
+  createDirectOrderController
 );
 
 /* =================================

@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
   addToCart,
@@ -9,7 +9,12 @@ import {
   removeFromCart,
   clearCart,
 } from "../redux/cart.slice";
-import { createOrderAPI, verifyPaymentAPI } from "../services/cart.api";
+
+import {
+  createOrderAPI,
+  verifyPaymentAPI,
+  createDirectOrderAPI,
+} from "../services/cart.api";
 
 export const useCart = () => {
   const dispatch = useDispatch();
@@ -18,26 +23,20 @@ export const useCart = () => {
     (state) => state.cart
   );
 
-  /* FETCH CART ON LOAD */
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  /* ======================
+     LOAD CART
+  ====================== */
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch]);
 
-  /* ACTIONS */
-  const addItemToCart = (
-    productId,
-    variantId,
-    quantity = 1,
-    selectedAttributes = {}
-  ) => {
-    dispatch(
-      addToCart({
-        productId,
-        variantId,
-        quantity,
-        selectedAttributes,
-      })
-    );
+  /* ======================
+     CART ACTIONS
+  ====================== */
+  const addItemToCart = (productId, variantId, quantity = 1, selectedAttributes = {}) => {
+    dispatch(addToCart({ productId, variantId, quantity, selectedAttributes }));
   };
 
   const increaseQty = (itemId, quantity = 1) => {
@@ -56,42 +55,41 @@ export const useCart = () => {
     dispatch(clearCart());
   };
 
-
-    /* ======================
-     💳 CREATE ORDER (Razorpay)
+  /* ======================
+     CART CHECKOUT
   ====================== */
-  const handleCreateCartOrder = async () => {
+  const handleCreateCartOrder = async (shippingAddress) => {
     try {
       setPaymentLoading(true);
-
-      const res = await createOrderAPI();
-
-      // backend should return Razorpay order
-      return res.data; 
-    } catch (err) {
-      console.error("Order creation failed:", err);
-      throw err;
+      const res = await createOrderAPI(shippingAddress);
+      return res.data;
     } finally {
       setPaymentLoading(false);
     }
   };
 
   /* ======================
-     ✅ VERIFY PAYMENT
+     DIRECT PRODUCT CHECKOUT
+  ====================== */
+  const handleDirectCheckout = async (data) => {
+    try {
+      setPaymentLoading(true);
+      const res = await createDirectOrderAPI(data);
+      return res.data;
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  /* ======================
+     VERIFY PAYMENT
   ====================== */
   const handleVerifyPayment = async (paymentData) => {
     try {
       setPaymentLoading(true);
-
       const res = await verifyPaymentAPI(paymentData);
-
-      // optional: refresh cart after success
       dispatch(fetchCart());
-
       return res.data;
-    } catch (err) {
-      console.error("Payment verification failed:", err);
-      throw err;
     } finally {
       setPaymentLoading(false);
     }
@@ -103,13 +101,16 @@ export const useCart = () => {
     currency,
     loading,
     error,
+    paymentLoading,
 
     addItemToCart,
     increaseQty,
     decreaseQty,
     removeItem,
     clear,
+
     handleCreateCartOrder,
+    handleDirectCheckout,
     handleVerifyPayment,
   };
 };

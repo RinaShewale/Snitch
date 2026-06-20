@@ -134,7 +134,6 @@ export const ProductDetailPage = () => {
         try {
             setPaymentLoading(true);
 
-            // 1. Get shipping address
             const shippingAddress = JSON.parse(localStorage.getItem("shippingAddress"));
 
             if (!shippingAddress) {
@@ -142,28 +141,22 @@ export const ProductDetailPage = () => {
                 return;
             }
 
-            // 2. BUILD DIRECT PURCHASE PAYLOAD (NO CART TOUCH)
-            const directPurchasePayload = {
+            const payload = {
+                productId: id,
+                variantId: currentVariant?._id || null,
+                quantity,
+                selectedAttributes: {
+                    ...(selectedColor && { color: selectedColor }),
+                    ...(selectedSize && { size: selectedSize }),
+                },
                 shippingAddress,
-                items: [
-                    {
-                        productId: id,
-                        variantId: currentVariant?._id || null,
-                        quantity,
-                        selectedAttributes: {
-                            ...(selectedColor && { color: selectedColor }),
-                            ...(selectedSize && { size: selectedSize }),
-                        },
-                    },
-                ],
-                isDirectPurchase: true,
             };
 
-            // 3. CREATE ORDER
-            const res = await createOrderAPI(directPurchasePayload);
+            // 1. Create direct order
+            const res = await createDirectOrderAPI(payload);
             const order = res.data.order;
 
-            // 4. RAZORPAY OPTIONS
+            // 2. Razorpay options
             const options = {
                 key: "rzp_test_SpkPh7sxRTTlGW",
                 amount: order.amount,
@@ -183,7 +176,7 @@ export const ProductDetailPage = () => {
                         dispatch(fetchCart());
                         navigate("/orders");
                     } catch (err) {
-                        console.error("Payment verification failed:", err);
+                        console.error("Verification failed:", err);
                     }
                 },
 
@@ -197,19 +190,17 @@ export const ProductDetailPage = () => {
                 },
             };
 
-            // 5. OPEN RAZORPAY
             const rzp = new Razorpay(options);
             rzp.open();
 
         } catch (err) {
             console.error("Checkout failed:", err);
-            alert("Something went wrong. Please try again.");
+            alert("Something went wrong");
         } finally {
             setPaymentLoading(false);
         }
     };
 
-    
     const handleWishlistToggle = () => {
         toggleWishlist(id);
         gsap.fromTo(heartRef.current, { scale: 0.7 }, { scale: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" });

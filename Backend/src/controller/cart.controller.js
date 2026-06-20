@@ -382,67 +382,34 @@ export const removeFromCart = async (req, res) => {
 ====================== */
 export const createOrderController = async (req, res) => {
   try {
+    const cart = await getCartWithTotal(req.user._id);
+
+    if (!cart?.items?.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Cart is empty",
+      });
+    }
+
+    // 🔥 SAFE BODY HANDLING (IMPORTANT FIX)
     const body = req.body || {};
-    const userId = req.user._id;
+    const shippingAddress = body.shippingAddress;
 
-    const user = await User.findById(userId);
+    // 🔥 fallback from user profile (VERY IMPORTANT)
+    const user = await User.findById(req.user._id);
 
-    let items = [];
-    let amount = 0;
+    const finalShippingAddress =
+      shippingAddress || user?.selectedAddress;
 
-    // =========================
-    // 🧾 SINGLE PRODUCT CHECKOUT
-    // =========================
-    if (body.items && body.items.length > 0) {
-      items = body.items;
-
-      for (const item of items) {
-        const product = await Product.findById(item.productId);
-        if (!product) continue;
-
-        let price = product.price.amount;
-
-        if (item.variantId) {
-          const variant = product.variants.id(item.variantId);
-          if (variant) {
-            price = variant.price?.amount || price;
-          }
-        }
-
-        amount += price * item.quantity;
-      }
-    }
-
-    // =========================
-    // 🛒 CART CHECKOUT
-    // =========================
-    else {
-      const cart = await getCartWithTotal(userId);
-
-      if (!cart?.items?.length) {
-        return res.status(400).json({
-          success: false,
-          message: "Cart is empty",
-        });
-      }
-
-      items = cart.items;
-      amount = cart.totalPrice;
-    }
-
-    // =========================
-    // SHIPPING ADDRESS
-    // =========================
-    const shippingAddress =
-      body.shippingAddress || user?.selectedAddress;
-
+    // 🔥 VALIDATION
     if (
-      !shippingAddress?.fullName ||
-      !shippingAddress?.phone ||
-      !shippingAddress?.addressLine1 ||
-      !shippingAddress?.city ||
-      !shippingAddress?.state ||
-      !shippingAddress?.postalCode
+      !finalShippingAddress ||
+      !finalShippingAddress.fullName ||
+      !finalShippingAddress.phone ||
+      !finalShippingAddress.addressLine1 ||
+      !finalShippingAddress.city ||
+      !finalShippingAddress.state ||
+      !finalShippingAddress.postalCode
     ) {
       return res.status(400).json({
         success: false,
@@ -450,28 +417,96 @@ export const createOrderController = async (req, res) => {
       });
     }
 
-    // =========================
-    // RAZORPAY ORDER
-    // =========================
+    const amount = cart.totalPrice;
+
     const razorpayOrder = await createOrder({
       amount,
       currency: "INR",
     });
 
-    // =========================
-    // SAVE PAYMENT
-    // =========================
     const payment = await paymentModel.create({
-      user: userId,
+      user: req.user._id,
       razorpay: {
         orderId: razorpayOrder.id,
       },
       amount,
       currency: "INR",
       status: "pending",
-      items,
+      items: cart.items,
+      shippingAddress: finalShippingAddress, // ✅ FIXED
+    });
+
+    return res.status(200).json({
+      success: true,
+      order: razorpayOrder,
+      payment,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
+
+
+
+export const createDirectOrderController = async (req, res) => {
+  try {
+    const {
+      productId,
+      variantId,
+      quantity = 1,
+      selectedAttributes = {},
       shippingAddress,
-      isDirectPurchase: !!body.items, // 👈 important flag
+    } = req.body;
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const variant = product.variants.id(variantId);
+
+    // calculate price (variant > product)
+    const price = variant?.price?.amount || product.price.amount;
+
+    // Razorpay order create
+    const razorpayOrder = await createOrder({
+      amount: price * quantity,
+      currency: "INR",
+    });
+
+    // create payment entry
+    const payment = await paymentModel.create({
+      user: req.user._id,
+      razorpay: {
+        orderId: razorpayOrder.id,
+      },
+      amount: price * quantity,
+      currency: "INR",
+      status: "pending",
+      items: [
+        {
+          product: productId,
+          variant: variantId,
+          quantity,
+          selectedAttributes,
+          price: {
+            amount: price,
+            currency: "INR",
+          },
+        },
+      ],
+      shippingAddress,
     });
 
     return res.status(200).json({
@@ -531,7 +566,7 @@ export const verifyOrderController = async (req, res) => {
     }
 
     // ======================
-    // MARK PAYMENT PAID
+    // MARK PAYMENT SUCCESS
     // ======================
     payment.status = "paid";
     payment.razorpay.paymentId = razorpay_payment_id;
@@ -540,43 +575,46 @@ export const verifyOrderController = async (req, res) => {
     await payment.save();
 
     // ======================
-    // CREATE ORDER (WORKS FOR BOTH CART + SINGLE)
+    // CREATE ORDER
     // ======================
-
     const order = await Order.create({
       user: payment.user,
       payment: payment._id,
-      items: payment.items, // 👈 SAME STRUCTURE FOR BOTH
-      totalAmount: payment.amount, // 👈 ALWAYS FROM BACKEND (SAFE)
+      items: payment.items,
+      totalAmount: payment.amount,
       currency: payment.currency,
       status: "confirmed",
       shippingAddress: payment.shippingAddress,
-      isDirectPurchase: payment.isDirectPurchase || false, // ⭐ IMPORTANT FLAG
     });
 
     // ======================
-    // REDUCE STOCK ONLY FOR VARIANTS
+    // REDUCE STOCK
     // ======================
     for (const item of payment.items) {
-      if (!item.variant) continue;
+      if (!item.product) continue;
 
       await Product.updateOne(
         {
           _id: item.product,
-          "variants._id": item.variant,
+          ...(item.variant && { "variants._id": item.variant }),
         },
         {
           $inc: {
-            "variants.$.stock": -item.quantity,
+            ...(item.variant
+              ? { "variants.$.stock": -item.quantity }
+              : { stock: -item.quantity }),
           },
         }
       );
     }
 
     // ======================
-    // CLEAR CART ONLY IF IT WAS CART ORDER
+    // CLEAR CART ONLY IF CART CHECKOUT
     // ======================
-    if (!payment.isDirectPurchase) {
+    // direct checkout items are NOT cart based
+    const isCartOrder = payment.items.length > 1;
+
+    if (isCartOrder) {
       await Cart.findOneAndUpdate(
         { user: payment.user },
         { $set: { items: [] } }
@@ -588,7 +626,6 @@ export const verifyOrderController = async (req, res) => {
       message: "Payment verified successfully",
       orderId: order._id,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,

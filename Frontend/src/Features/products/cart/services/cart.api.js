@@ -63,3 +63,9 @@ export const createOrderAPI = (shippingAddress) => {
 export const verifyPaymentAPI = (data) => {
   return API.post("/cart/verify-payment", data);
 };
+
+
+
+export const createDirectOrderAPI = (data) => {
+  return API.post("/cart/checkout/direct", data);
+};
