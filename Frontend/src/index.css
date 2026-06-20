@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+:root {
+  --cream: #f5f1ec;
+  --beige: #ded7d0;
+  --ink: #1a1714;
+  --ink-soft: #2a2724;
+}
+
+@layer base {
+  body {
+    @apply bg-[#f5f1ec] text-[#1a1714] font-sans antialiased overflow-x-hidden;
+  }
+  .font-serif { font-family: 'Cormorant Garamond', serif; }
+  .font-sans { font-family: 'Inter', sans-serif; }
+}
+
+@layer utilities {
+  .tracking-luxe { letter-spacing: 0.3em; }
+  .tracking-wider-2 { letter-spacing: 0.15em; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* GSAP Reveal Classes */
+.reveal-up { opacity: 0; transform: translateY(30px); }
+
+/* Custom Marquee */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+}
+
+
+@keyframes loading-bar {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(1); transform-origin: left; }
+  51% { transform: scaleX(1); transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
