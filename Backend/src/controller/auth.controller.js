@@ -177,10 +177,15 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
+    console.log("📧 Forgot password request for:", email);
+
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found ❌" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found ❌",
+      });
     }
 
     const token = crypto.randomBytes(32).toString("hex");
@@ -192,7 +197,10 @@ export const forgotPassword = async (req, res) => {
 
     const resetLink = `https://snitch-fwb7.onrender.com/reset-password/${token}`;
 
-    await transporter.sendMail({
+    console.log("📨 Sending email...");
+
+    const info = await transporter.sendMail({
+      from: `"Snitch" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Password Reset Request",
       html: `
@@ -205,18 +213,22 @@ export const forgotPassword = async (req, res) => {
       `,
     });
 
+    console.log("✅ Mail sent:", info.messageId);
+
     return res.json({
       success: true,
       message: "Reset link sent ✅",
     });
-
   } catch (err) {
+    console.error("❌ Forgot password error:", err);
+
     return res.status(500).json({
       success: false,
       message: err.message,
     });
   }
 };
+
 
 
 // ================= RESET PASSWORD =================

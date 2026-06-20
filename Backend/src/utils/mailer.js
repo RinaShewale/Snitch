@@ -1,21 +1,21 @@
 import nodemailer from "nodemailer";
 import { config } from "../config/config.js";
 
-// Create reusable transporter
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // SSL
+  service: "gmail",
   auth: {
     user: config.EMAIL_USER,
     pass: config.EMAIL_PASS,
   },
+
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
-// Optional: verify connection (good for debugging)
-transporter.verify((error, success) => {
+transporter.verify((error) => {
   if (error) {
-    console.log("❌ Mailer error:", error.message);
+    console.error("❌ Mailer error:", error);
   } else {
     console.log("✅ Mailer is ready to send emails");
   }
