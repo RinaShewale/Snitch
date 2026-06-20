@@ -1,16 +1,10 @@
 import nodemailer from "nodemailer";
 
-// Updated to use Brevo SMTP settings with port 2525 to bypass firewall timeout blocks
 const transporter = nodemailer.createTransport({
-  host: "://brevo.com",
-  port: 2525, // Port 2525 explicitly bypasses cloud provider network blocks
-  secure: false, // Must be false for port 2525
+  service: "gmail",
   auth: {
-    user: process.env.BREVO_EMAIL, // Your verified Brevo sender email
-    pass: process.env.BREVO_SMTP_KEY, // Your Master SMTP key (starts with xsmtpsib-)
-  },
-  tls: {
-    rejectUnauthorized: false, // Prevents timeouts caused by local/network SSL handshake lags
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -111,16 +105,10 @@ const template = ({
 };
 
 export const sendOrderStatusEmail = async (data) => {
-  try {
-    await transporter.sendMail({
-      from: `"Shop" <${process.env.BREVO_EMAIL}>`, // Must match your verified Brevo sender email
-      to: data.email,
-      subject: `Update for Order #${data.orderId}: ${data.status}`,
-      html: template(data),
-    });
-    console.log("✅ Email sent successfully.");
-  } catch (error) {
-    console.error("❌ Nodemailer send error:", error.message);
-    throw error;
-  }
+  await transporter.sendMail({
+    from: `"Shop" <${process.env.EMAIL_USER}>`,
+    to: data.email,
+    subject: `Update for Order #${data.orderId}: ${data.status}`,
+    html: template(data),
+  });
 };

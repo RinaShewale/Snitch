@@ -1,26 +1,23 @@
 import nodemailer from "nodemailer";
 import { config } from "../config/config.js";
 
+// Create reusable transporter
 const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 2525, // 👈 Changed from 587 to 2525
-  secure: false,
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // SSL
   auth: {
-    user: config.BREVO_EMAIL,
-    pass: config.BREVO_SMTP_KEY,
+    user: config.EMAIL_USER,
+    pass: config.EMAIL_PASS,
   },
-  // 👇 Added to prevent strict local/network SSL handshake timeouts
-  tls: {
-    ciphers: 'SSLv3',
-    rejectUnauthorized: false
-  }
 });
 
-transporter.verify((error) => {
+// Optional: verify connection (good for debugging)
+transporter.verify((error, success) => {
   if (error) {
-    console.error("❌ Brevo mailer error:", error);
+    console.log("❌ Mailer error:", error.message);
   } else {
-    console.log("✅ Brevo mailer is ready");
+    console.log("✅ Mailer is ready to send emails");
   }
 });
 
