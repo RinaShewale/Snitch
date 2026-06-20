@@ -1,23 +1,15 @@
 import nodemailer from "nodemailer";
+import dns from "dns";
 import { config } from "../config/config.js";
 
+dns.setDefaultResultOrder("ipv4first");
+
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
+  service: "gmail",
   auth: {
     user: config.EMAIL_USER,
     pass: config.EMAIL_PASS,
   },
-});
-
-transporter.verify((error) => {
-  if (error) {
-    console.error("❌ Mailer error:", error);
-  } else {
-    console.log("✅ Mailer is ready to send emails");
-  }
 });
 
 export default transporter;
