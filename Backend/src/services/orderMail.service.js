@@ -1,13 +1,14 @@
-import nodemailer from "nodemailer";
+import Brevo from "@getbrevo/brevo";
+import { config } from "../config/config.js";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const apiInstance = new Brevo.TransactionalEmailsApi();
 
+apiInstance.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  config.BREVO_API_KEY
+);
+
+// ================= HTML TEMPLATE =================
 const template = ({
   name,
   orderId,
@@ -16,87 +17,67 @@ const template = ({
   courierPartner,
   estimatedDeliveryDate,
 }) => {
-  // Define a color based on status
   const statusColors = {
     shipped: "#3b82f6",
     delivered: "#10b981",
     processing: "#f59e0b",
     cancelled: "#ef4444",
   };
-  const themeColor = statusColors[status.toLowerCase()] || "#6366f1";
+
+  const themeColor = statusColors[status?.toLowerCase()] || "#6366f1";
 
   return `
   <!DOCTYPE html>
   <html>
   <head>
     <style>
-      .container { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; }
-      .card { background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; }
-      .header { background-color: ${themeColor}; padding: 30px 20px; text-align: center; color: white; }
-      .content { padding: 30px; }
-      .status-badge { display: inline-block; padding: 6px 12px; border-radius: 50px; background-color: #f3f4f6; color: ${themeColor}; font-weight: bold; font-size: 14px; text-transform: uppercase; margin-bottom: 20px; }
-      .order-info { background-color: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #edf2f7; }
-      .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-      .info-label { color: #64748b; font-weight: 500; }
-      .info-value { color: #1e293b; font-weight: 600; text-align: right; }
-      .button { display: inline-block; padding: 12px 24px; background-color: ${themeColor}; color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 20px; }
-      .footer { text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; }
-      hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+      .container { font-family: Arial; max-width: 600px; margin: auto; padding: 20px; background:#f9fafb; }
+      .card { background:#fff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb; }
+      .header { background:${themeColor}; padding:20px; text-align:center; color:#fff; }
+      .content { padding:20px; }
+      .status-badge { display:inline-block; padding:6px 12px; border-radius:20px; background:#f3f4f6; color:${themeColor}; font-weight:bold; }
+      .order-info { background:#f8fafc; padding:15px; border-radius:8px; margin:15px 0; }
+      .footer { text-align:center; font-size:12px; color:#94a3b8; margin-top:20px; }
+      .button { background:${themeColor}; color:#fff; padding:10px 15px; text-decoration:none; border-radius:6px; display:inline-block; margin-top:10px; }
     </style>
   </head>
+
   <body>
     <div class="container">
       <div class="card">
         <div class="header">
-          <h1 style="margin:0; font-size: 24px;">Order Update</h1>
-          <p style="margin:5px 0 0; opacity: 0.9;">Order #${orderId}</p>
+          <h2>Order Update</h2>
+          <p>Order #${orderId}</p>
         </div>
-        
+
         <div class="content">
+          <p>Hi <b>${name}</b>,</p>
+
           <div class="status-badge">${status}</div>
-          <p style="font-size: 18px; margin-top: 0;">Hi <b>${name}</b>,</p>
-          <p>Great news! Your order status has been updated. Here are the latest details regarding your delivery.</p>
-          
+
           <div class="order-info">
-            <table width="100%" cellspacing="0" cellpadding="0">
-              <tr>
-                <td class="info-label" style="padding: 5px 0;">Courier Partner</td>
-                <td class="info-value" style="padding: 5px 0;">${courierPartner || "Assigning Soon"}</td>
-              </tr>
-              <tr>
-                <td class="info-label" style="padding: 5px 0;">Tracking ID</td>
-                <td class="info-value" style="padding: 5px 0;">${trackingNumber || "Not Available"}</td>
-              </tr>
-              <tr>
-                <td class="info-label" style="padding: 5px 0;">Est. Delivery</td>
-                <td class="info-value" style="padding: 5px 0;">${
-                  estimatedDeliveryDate
-                    ? new Date(estimatedDeliveryDate).toDateString()
-                    : "TBD"
-                }</td>
-              </tr>
-            </table>
+            <p><b>Courier:</b> ${courierPartner || "Assigning Soon"}</p>
+            <p><b>Tracking:</b> ${trackingNumber || "Not Available"}</p>
+            <p><b>Delivery:</b> ${
+              estimatedDeliveryDate
+                ? new Date(estimatedDeliveryDate).toDateString()
+                : "TBD"
+            }</p>
           </div>
 
           ${
             trackingNumber
-              ? `<div style="text-align: center;">
-                  <a href="#" class="button">Track Your Package</a>
-                  <p style="font-size: 12px; color: #64748b; margin-top: 15px;">If the button doesn't work, use tracking number <b>${trackingNumber}</b> on the courier's website.</p>
-                 </div>`
-              : `<p style="text-align: center; color: #64748b; font-style: italic;">We'll notify you as soon as your tracking number is generated.</p>`
+              ? `<a class="button" href="#">Track Package</a>`
+              : `<p>Tracking will be available soon.</p>`
           }
-          
-          <hr />
-          
-          <p style="font-size: 13px; color: #64748b; text-align: center;">
-            Thank you for shopping with us!<br/>
-            If you have any questions, reply to this email.
-          </p>
+
+          <hr/>
+          <p style="font-size:12px;">If you have questions, reply to this email.</p>
         </div>
       </div>
+
       <div class="footer">
-        &copy; ${new Date().getFullYear()} Your Shop Name. All rights reserved.
+        © ${new Date().getFullYear()} Your Shop Name
       </div>
     </div>
   </body>
@@ -104,11 +85,28 @@ const template = ({
   `;
 };
 
+// ================= SEND EMAIL =================
 export const sendOrderStatusEmail = async (data) => {
-  await transporter.sendMail({
-    from: `"Shop" <${process.env.EMAIL_USER}>`,
-    to: data.email,
-    subject: `Update for Order #${data.orderId}: ${data.status}`,
-    html: template(data),
-  });
+  try {
+    const email = new Brevo.SendSmtpEmail();
+
+    email.sender = {
+      name: config.SENDER_NAME || "Shop",
+      email: config.SENDER_EMAIL,
+    };
+
+    email.to = [{ email: data.email }];
+
+    email.subject = `Update for Order #${data.orderId}: ${data.status}`;
+
+    email.htmlContent = template(data);
+
+    const response = await apiInstance.sendTransacEmail(email);
+
+    console.log("✅ Order email sent:", response);
+    return response;
+  } catch (error) {
+    console.error("❌ Order mail error:", error.response?.body || error.message);
+    throw error;
+  }
 };

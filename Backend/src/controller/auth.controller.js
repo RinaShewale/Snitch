@@ -1,6 +1,6 @@
 import User from "../models/user.model.js";
 import { generateToken } from "../utils/generateToken.js";
-import transporter from "../utils/mailer.js";
+import sendEmail from "../utils/mailer.js";
 import crypto from "crypto";
 
 
@@ -199,19 +199,20 @@ export const forgotPassword = async (req, res) => {
 
     console.log("📨 Sending email...");
 
-    const info = await transporter.sendMail({
-      from: `"Snitch" <${process.env.BREVO_EMAIL}>`,
+    const info = await sendEmail({
       to: email,
       subject: "Password Reset Request",
-      html: `
+      htmlContent: `
     <div>
       <h2>Reset Password</h2>
-      <p>Click below link:</p>
+      <p>Click the link below to reset your password:</p>
       <a href="${resetLink}">${resetLink}</a>
-      <p>Valid for 15 minutes</p>
+      <p>This link is valid for 15 minutes.</p>
     </div>
   `,
     });
+
+    console.log("✅ Reset email sent");
     console.log("✅ Mail sent:", info.messageId);
 
     return res.json({
