@@ -23,18 +23,13 @@ if (!process.env.GOOGLE_CALLBACK_URL) {
   throw new Error("❌ GOOGLE_CALLBACK_URL is missing");
 }
 
-if (!process.env.BREVO_API_KEY) {
-  throw new Error("❌ BREVO_API_KEY is missing");
+if (!process.env.BREVO_SMTP_KEY) {
+  throw new Error("❌ BREVO_SMTP_KEY is missing");
 }
 
-if (!process.env.SENDER_EMAIL) {
-  throw new Error("❌ SENDER_EMAIL is missing");
+if (!process.env.BREVO_EMAIL) {
+  throw new Error("❌ BREVO_EMAIL is missing");
 }
-
-if (!process.env.SENDER_NAME) {
-  throw new Error("❌ SENDER_NAME is missing");
-}
-
 
 // ✅ ImageKit validation (FIXED)
 if (!process.env.IMAGEKIT_PUBLIC_KEY) {
@@ -68,11 +63,9 @@ export const config = {
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
 
-
-  // Brevo API
-  BREVO_API_KEY: process.env.BREVO_API_KEY,
-  SENDER_EMAIL: process.env.SENDER_EMAIL,
-  SENDER_NAME: process.env.SENDER_NAME || "Snitch",
+  // ✅ Brevo
+  BREVO_EMAIL: process.env.BREVO_EMAIL,
+  BREVO_SMTP_KEY: process.env.BREVO_SMTP_KEY,
 
   IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY,
   IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
