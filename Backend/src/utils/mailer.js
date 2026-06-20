@@ -1,15 +1,22 @@
 import nodemailer from "nodemailer";
-import dns from "dns";
 import { config } from "../config/config.js";
 
-dns.setDefaultResultOrder("ipv4first");
-
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  secure: false,
   auth: {
-    user: config.EMAIL_USER,
-    pass: config.EMAIL_PASS,
+    user: config.BREVO_EMAIL,
+    pass: config.BREVO_SMTP_KEY,
   },
+});
+
+transporter.verify((error) => {
+  if (error) {
+    console.error("❌ Brevo mailer error:", error);
+  } else {
+    console.log("✅ Brevo mailer is ready");
+  }
 });
 
 export default transporter;

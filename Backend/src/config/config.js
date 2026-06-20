@@ -23,12 +23,12 @@ if (!process.env.GOOGLE_CALLBACK_URL) {
   throw new Error("❌ GOOGLE_CALLBACK_URL is missing");
 }
 
-if (!process.env.EMAIL_USER) {
-  throw new Error("❌ EMAIL_USER is missing");
+if (!process.env.BREVO_SMTP_KEY) {
+  throw new Error("❌ BREVO_SMTP_KEY is missing");
 }
 
-if (!process.env.EMAIL_PASS) {
-  throw new Error("❌ EMAIL_PASS is missing");
+if (!process.env.BREVO_EMAIL) {
+  throw new Error("❌ BREVO_EMAIL is missing");
 }
 
 // ✅ ImageKit validation (FIXED)
@@ -63,8 +63,9 @@ export const config = {
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
 
-  EMAIL_USER: process.env.EMAIL_USER,
-  EMAIL_PASS: process.env.EMAIL_PASS,
+  // ✅ Brevo
+  BREVO_EMAIL: process.env.BREVO_EMAIL,
+  BREVO_SMTP_KEY: process.env.BREVO_SMTP_KEY,
 
   IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY,
   IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,

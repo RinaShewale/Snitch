@@ -200,19 +200,18 @@ export const forgotPassword = async (req, res) => {
     console.log("📨 Sending email...");
 
     const info = await transporter.sendMail({
-      from: `"Snitch" <${process.env.EMAIL_USER}>`,
+      from: `"Snitch" <${process.env.BREVO_EMAIL}>`,
       to: email,
       subject: "Password Reset Request",
       html: `
-        <div>
-          <h2>Reset Password</h2>
-          <p>Click below link:</p>
-          <a href="${resetLink}">${resetLink}</a>
-          <p>Valid for 15 minutes</p>
-        </div>
-      `,
+    <div>
+      <h2>Reset Password</h2>
+      <p>Click below link:</p>
+      <a href="${resetLink}">${resetLink}</a>
+      <p>Valid for 15 minutes</p>
+    </div>
+  `,
     });
-
     console.log("✅ Mail sent:", info.messageId);
 
     return res.json({
