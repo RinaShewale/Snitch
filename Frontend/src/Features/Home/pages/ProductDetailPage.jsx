@@ -3,14 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import {
     Maximize, Minimize, Plus, Minus,
-    ShoppingBag, Heart, Sparkles, Globe, Truck, Loader2 // Added Loader2
+    ShoppingBag, Heart, Sparkles, Globe, Truck, Loader2
 } from "lucide-react";
 import { useProduct } from "../../products/hooks/useProduct"; 
 import { useDispatch } from "react-redux";
 import { addToCart, fetchCart } from "../../products/cart/redux/cart.slice";
 import { useWishlist } from "../../products/wishlist/hooks/useWishlist"; 
 
-// --- NEW IMPORTS FOR CHECKOUT ---
+// --- NEW IMPORTS ---
 import { useRazorpay } from "react-razorpay";
 import { createOrderAPI, verifyPaymentAPI } from "../../products/cart/services/cart.api"; 
 
@@ -20,11 +20,11 @@ export const ProductDetailPage = () => {
     const { handleGetProductById } = useProduct();
     const dispatch = useDispatch();
     const { toggleWishlist, isInWishlist } = useWishlist();
-    const { Razorpay } = useRazorpay(); // Initialize Razorpay hook
+    const { Razorpay } = useRazorpay();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [paymentLoading, setPaymentLoading] = useState(false); // Added for Checkout
+    const [paymentLoading, setPaymentLoading] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isZoomed, setIsZoomed] = useState(false);
     const [selectedColor, setSelectedColor] = useState("");
@@ -102,7 +102,6 @@ export const ProductDetailPage = () => {
         return colorMatches && sizeMatches;
     }) || (product?.variants?.length > 0 ? product.variants[0] : null);
 
-    // --- SHARED LOGIC: Add to Cart ---
     const handleAddToCart = async () => {
         if (colors.length > 0 && !selectedColor) { alert("Please select a color"); return; }
         if (sizes.length > 0 && !selectedSize) { alert("Please select a size"); return; }
@@ -119,7 +118,7 @@ export const ProductDetailPage = () => {
         dispatch(fetchCart());
     };
 
-    // --- NEW LOGIC: Handle Direct Checkout (Buy Now) ---
+    // --- UPDATED DIRECT CHECKOUT: ONLY THIS PRODUCT ---
     const handleDirectCheckout = async () => {
         if (colors.length > 0 && !selectedColor) { alert("Please select a color"); return; }
         if (sizes.length > 0 && !selectedSize) { alert("Please select a size"); return; }
@@ -127,35 +126,39 @@ export const ProductDetailPage = () => {
         try {
             setPaymentLoading(true);
 
-            // 1. Check for shipping address
             const shippingAddress = JSON.parse(localStorage.getItem("shippingAddress"));
             if (!shippingAddress) {
                 navigate("/address");
                 return;
             }
 
-            // 2. Add item to cart first to ensure it's in the order
-            await dispatch(addToCart({
-                productId: id,
-                variantId: currentVariant?._id || null,
-                quantity,
-                selectedAttributes: { 
-                    ...(selectedColor && { color: selectedColor }), 
-                    ...(selectedSize && { size: selectedSize }) 
-                },
-            })).unwrap();
+            /** 
+             * Instead of relying on the global cart, we pass this specific item 
+             * to the backend order creator. 
+             */
+            const directPurchasePayload = {
+                shippingAddress,
+                items: [{
+                    productId: id,
+                    variantId: currentVariant?._id || null,
+                    quantity: quantity,
+                    selectedAttributes: {
+                        color: selectedColor,
+                        size: selectedSize
+                    }
+                }],
+                isDirectPurchase: true // Help backend distinguish from full cart checkout
+            };
 
-            // 3. Create the order
-            const res = await createOrderAPI(shippingAddress);
+            const res = await createOrderAPI(directPurchasePayload);
             const order = res.data.order;
 
-            // 4. Configure Razorpay Options
             const options = {
-                key: "rzp_test_SpkPh7sxRTTlGW", // Replace with your actual key if needed
+                key: "rzp_test_SpkPh7sxRTTlGW", 
                 amount: order.amount,
                 currency: order.currency,
                 name: "snitch",
-                description: `Purchase: ${product.title}`,
+                description: `Direct Purchase: ${product.title}`,
                 order_id: order.id,
                 handler: async function (response) {
                     try {
@@ -165,15 +168,12 @@ export const ProductDetailPage = () => {
                             razorpay_signature: response.razorpay_signature,
                         });
                         dispatch(fetchCart());
-                        navigate('/orders'); // Redirect to orders success page
+                        navigate('/orders');
                     } catch (err) {
                         console.error("Payment verification failed", err);
                     }
                 },
-                prefill: {
-                    name: "Customer",
-                    email: "customer@example.com",
-                },
+                prefill: { name: "Customer", email: "customer@example.com" },
                 theme: { color: "#111111" },
             };
 
@@ -181,7 +181,8 @@ export const ProductDetailPage = () => {
             rzp.open();
 
         } catch (err) {
-            console.error("Checkout process failed:", err);
+            console.error("Direct checkout failed:", err);
+            alert("Failed to initiate checkout. Please try again.");
         } finally {
             setPaymentLoading(false);
         }
@@ -205,11 +206,10 @@ export const ProductDetailPage = () => {
 
     return (
         <div className="min-h-screen bg-[#f3f1ef] text-[#111111] selection:bg-black selection:text-white pb-32 overflow-x-hidden" ref={containerRef}>
-            {/* Grain Overlay */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
             
             <main className="max-w-[1300px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 pt-[110px] relative z-10">
-                {/* Image Section */}
+                {/* Left Column: Images */}
                 <div className="lg:col-span-6 space-y-6">
                     <div className="image-stage relative aspect-square max-h-[600px] bg-white rounded-[2.5rem] overflow-hidden border border-neutral-100 shadow-sm group mx-auto w-full">
                         <div className="absolute inset-0 p-8 flex items-center justify-center">
@@ -244,7 +244,7 @@ export const ProductDetailPage = () => {
                     </div>
                 </div>
 
-                {/* Details Section */}
+                {/* Right Column: Info */}
                 <div className="lg:col-span-6 space-y-8">
                     <section className="content-reveal">
                         <div className="flex items-center gap-3 mb-4">
@@ -310,11 +310,11 @@ export const ProductDetailPage = () => {
 
                     <section className="content-reveal pt-6">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                            {/* UPDATED CHECKOUT BUTTON */}
+                            {/* BUY NOW BUTTON - ONLY FOR THIS ITEM */}
                             <button 
                                 onClick={handleDirectCheckout}
                                 disabled={paymentLoading || currentVariant?.stock === 0}
-                                className="flex-1 relative group overflow-hidden bg-[#111] text-white rounded-2xl py-6 transition-all duration-500 hover:bg-black hover:-translate-y-1 disabled:opacity-70"
+                                className="flex-1 relative group overflow-hidden bg-[#111] text-white rounded-2xl py-6 transition-all duration-500 hover:bg-black hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
                             >
                                 <div className="relative z-10 flex items-center justify-center gap-4">
                                     {paymentLoading ? (
@@ -354,7 +354,7 @@ export const ProductDetailPage = () => {
                     </section>
                 </div>
             </main>
-            {/* Styles remain unchanged */}
+
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
                 body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FAFAFA; }

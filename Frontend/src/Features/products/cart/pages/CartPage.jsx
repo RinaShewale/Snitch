@@ -20,17 +20,35 @@ import {
   fetchCart 
 } from "../redux/cart.slice";
 
-// --- SUB-COMPONENT: CartItem ---
-// Defined before CartPage to ensure it is available in scope
+/**
+ * SUB-COMPONENT: CartItem
+ * Resiliently handles various data structures (title/name, price/price.amount, etc.)
+ */
 const CartItem = memo(({ item, onAction, isUpdating }) => {
+  // 1. Identify the product object (handles cases where it's named 'product' or 'productId')
+  const p = item.productId || item.product || {};
+  
+  // 2. Extract Name/Title
+  const displayName = p.title || p.name || "Premium Item";
+  
+  // 3. Extract Price (handles nested objects like {amount: 500} or direct numbers)
+  const unitPrice = p.price?.amount || p.price || 0;
+  
+  // 4. Extract Image (handles 'image' string or 'images' array)
+  const displayImage = p.image || (p.images && p.images[0]?.url) || (p.images && p.images[0]) || "https://via.placeholder.com/400x600?text=No+Image";
+
+  // 5. Identify the ID for actions
+  const productId = p._id || p.id;
+
   return (
     <div className={`group relative flex gap-4 md:gap-8 py-6 md:py-10 border-b border-[#1a1714]/5 transition-opacity ${isUpdating ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
       {/* Product Image */}
       <div className="relative aspect-[3/4] w-24 md:w-40 bg-[#eceae7] overflow-hidden flex-shrink-0">
         <img 
-          src={item.productId?.image || "https://via.placeholder.com/400x600?text=No+Image"} 
-          alt={item.productId?.name}
+          src={displayImage} 
+          alt={displayName}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+          onError={(e) => { e.target.src = "https://via.placeholder.com/400x600?text=Image+Error"; }}
         />
       </div>
 
@@ -39,14 +57,14 @@ const CartItem = memo(({ item, onAction, isUpdating }) => {
         <div className="flex justify-between items-start">
           <div>
             <h3 className="text-[11px] md:text-sm uppercase tracking-wider font-bold mb-1">
-              {item.productId?.name || "Unknown Product"}
+              {displayName}
             </h3>
             <p className="text-[10px] md:text-xs opacity-50 uppercase tracking-widest">
               Size: {item.size || 'Standard'}
             </p>
           </div>
           <p className="text-sm md:text-lg font-light tracking-tighter">
-            ₹{((item.productId?.price || 0) * item.quantity).toLocaleString()}
+            ₹{(unitPrice * item.quantity).toLocaleString()}
           </p>
         </div>
 
@@ -54,17 +72,17 @@ const CartItem = memo(({ item, onAction, isUpdating }) => {
           {/* Quantity Controls */}
           <div className="flex items-center border border-[#1a1714]/10 rounded-sm bg-white">
             <button 
-              onClick={() => onAction(decreaseCart, item.productId?._id, item._id)}
+              onClick={() => onAction(decreaseCart, productId, item._id)}
               className="p-2 hover:bg-[#1a1714] hover:text-white transition-colors"
-              disabled={isUpdating}
+              disabled={isUpdating || !productId}
             >
               <Minus size={12} />
             </button>
             <span className="w-8 text-center text-[10px] md:text-xs font-bold">{item.quantity}</span>
             <button 
-              onClick={() => onAction(increaseCart, item.productId?._id, item._id)}
+              onClick={() => onAction(increaseCart, productId, item._id)}
               className="p-2 hover:bg-[#1a1714] hover:text-white transition-colors"
-              disabled={isUpdating}
+              disabled={isUpdating || !productId}
             >
               <Plus size={12} />
             </button>
@@ -72,7 +90,7 @@ const CartItem = memo(({ item, onAction, isUpdating }) => {
 
           {/* Remove Button */}
           <button 
-            onClick={() => onAction(removeFromCart, item.productId?._id, item._id)}
+            onClick={() => onAction(removeFromCart, productId, item._id)}
             className="flex items-center gap-2 text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold opacity-40 hover:opacity-100 hover:text-red-600 transition-all"
           >
             <Trash2 size={12} />
@@ -108,42 +126,38 @@ const CartPage = () => {
   const containerRef = useRef(null);
   const isInitialMount = useRef(true);
 
+  // Get data from Redux
   const cartItems = useSelector((state) => state.cart.items || []);
+  const total = useSelector((state) => state.cart.totalPrice);
+  
   const { Razorpay } = useRazorpay();
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [activeItemId, setActiveItemId] = useState(null);
 
-  const total = useSelector((state) => state.cart.totalPrice);
   const safeTotal = Number(total || 0);
   const freeShippingLimit = 5000;
   const progress = Math.min((safeTotal / freeShippingLimit) * 100, 100);
 
+  // GSAP Animations
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
       if (isInitialMount.current) {
         gsap.from(".reveal", {
-          y: 20,
-          opacity: 0,
-          stagger: 0.08,
-          duration: 0.8,
-          ease: "power3.out",
+          y: 20, opacity: 0, stagger: 0.08, duration: 0.8, ease: "power3.out"
         });
         isInitialMount.current = false;
       }
-
       gsap.to(".shipping-line", {
-        width: `${progress}%`,
-        duration: 0.6,
-        ease: "power2.out",
+        width: `${progress}%`, duration: 0.6, ease: "power2.out"
       });
     }, containerRef);
     return () => ctx.revert();
   }, [progress, cartItems.length]);
 
   const handleCartAction = async (action, productId, itemId) => {
+    if (!productId) return;
     try {
       setActiveItemId(itemId);
-      // Ensure the payload matches your slice requirements
       await dispatch(action({ productId })).unwrap();
       await dispatch(fetchCart()).unwrap();
     } catch (error) {
@@ -181,7 +195,7 @@ const CartPage = () => {
               razorpay_signature: response.razorpay_signature,
             });
             dispatch(fetchCart());
-            navigate('/orders'); // Redirect to orders after success
+            navigate('/orders');
           } catch (err) {
             console.log("Verification failed", err);
           }
@@ -202,6 +216,7 @@ const CartPage = () => {
 
   return (
     <div ref={containerRef} className="relative min-h-screen bg-[#f8f5f2] text-[#1a1714] font-light selection:bg-[#1a1714] selection:text-white overflow-x-hidden">
+      {/* Noise Overlay */}
       <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.04] mix-blend-multiply bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
 
       <div className="hidden lg:block absolute top-10 right-0 text-[18vw] font-serif italic text-[#1a1714]/[0.03] leading-none select-none pointer-events-none">
@@ -225,6 +240,7 @@ const CartPage = () => {
         ) : (
           <div className="grid lg:grid-cols-12 gap-10 xl:gap-20">
             <div className="lg:col-span-7 xl:col-span-8">
+              {/* Shipping Progress Bar */}
               <div className="mb-8 md:mb-12 reveal bg-white/40 backdrop-blur-sm p-5 md:p-6 border border-[#1a1714]/5 rounded-sm">
                 <div className="flex justify-between text-[9px] md:text-[10px] uppercase tracking-widest font-bold mb-4">
                   <span className="opacity-80">
@@ -241,6 +257,7 @@ const CartPage = () => {
                 </div>
               </div>
 
+              {/* Items List */}
               <div className="space-y-4">
                 {cartItems.map((item) => (
                   <CartItem
@@ -253,6 +270,7 @@ const CartPage = () => {
               </div>
             </div>
 
+            {/* Sidebar Summary */}
             <aside className="lg:col-span-5 xl:col-span-4">
               <div className="lg:sticky lg:top-10 space-y-6">
                 <div className="bg-white p-6 md:p-10 shadow-sm border border-[#1a1714]/5">
