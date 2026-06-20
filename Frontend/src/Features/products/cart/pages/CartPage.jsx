@@ -1,15 +1,110 @@
 import React, { useLayoutEffect, useRef, useState, memo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRazorpay } from "react-razorpay";
-import { useNavigate } from "react-router-dom"; // 1. Added useNavigate
+import { useNavigate } from "react-router-dom";
 import { createOrderAPI, verifyPaymentAPI } from "../services/cart.api";
-import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag, MoveRight, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { 
+  Minus, 
+  Plus, 
+  Trash2, 
+  ArrowLeft, 
+  ShoppingBag, 
+  MoveRight, 
+  Loader2 
+} from "lucide-react";
 import gsap from "gsap";
-import { increaseCart, decreaseCart, removeFromCart, fetchCart } from "../redux/cart.slice";
+import { 
+  increaseCart, 
+  decreaseCart, 
+  removeFromCart, 
+  fetchCart 
+} from "../redux/cart.slice";
 
+// --- SUB-COMPONENT: CartItem ---
+// Defined before CartPage to ensure it is available in scope
+const CartItem = memo(({ item, onAction, isUpdating }) => {
+  return (
+    <div className={`group relative flex gap-4 md:gap-8 py-6 md:py-10 border-b border-[#1a1714]/5 transition-opacity ${isUpdating ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+      {/* Product Image */}
+      <div className="relative aspect-[3/4] w-24 md:w-40 bg-[#eceae7] overflow-hidden flex-shrink-0">
+        <img 
+          src={item.productId?.image || "https://via.placeholder.com/400x600?text=No+Image"} 
+          alt={item.productId?.name}
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+      </div>
+
+      {/* Product Details */}
+      <div className="flex flex-col flex-grow justify-between py-1">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-[11px] md:text-sm uppercase tracking-wider font-bold mb-1">
+              {item.productId?.name || "Unknown Product"}
+            </h3>
+            <p className="text-[10px] md:text-xs opacity-50 uppercase tracking-widest">
+              Size: {item.size || 'Standard'}
+            </p>
+          </div>
+          <p className="text-sm md:text-lg font-light tracking-tighter">
+            ₹{((item.productId?.price || 0) * item.quantity).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="flex justify-between items-end">
+          {/* Quantity Controls */}
+          <div className="flex items-center border border-[#1a1714]/10 rounded-sm bg-white">
+            <button 
+              onClick={() => onAction(decreaseCart, item.productId?._id, item._id)}
+              className="p-2 hover:bg-[#1a1714] hover:text-white transition-colors"
+              disabled={isUpdating}
+            >
+              <Minus size={12} />
+            </button>
+            <span className="w-8 text-center text-[10px] md:text-xs font-bold">{item.quantity}</span>
+            <button 
+              onClick={() => onAction(increaseCart, item.productId?._id, item._id)}
+              className="p-2 hover:bg-[#1a1714] hover:text-white transition-colors"
+              disabled={isUpdating}
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+
+          {/* Remove Button */}
+          <button 
+            onClick={() => onAction(removeFromCart, item.productId?._id, item._id)}
+            className="flex items-center gap-2 text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold opacity-40 hover:opacity-100 hover:text-red-600 transition-all"
+          >
+            <Trash2 size={12} />
+            <span className="hidden md:inline">Remove</span>
+          </button>
+        </div>
+      </div>
+
+      {isUpdating && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/10 backdrop-blur-[1px] z-10">
+          <Loader2 className="animate-spin opacity-40" size={20} />
+        </div>
+      )}
+    </div>
+  );
+});
+
+// --- SUB-COMPONENT: EmptyState ---
+const EmptyState = ({ onExplore }) => (
+  <div className="py-20 md:py-40 text-center reveal border-y border-[#1a1714]/5">
+    <ShoppingBag size={48} strokeWidth={0.5} className="opacity-20 mb-6 mx-auto" />
+    <h2 className="text-2xl md:text-4xl font-serif italic mb-4 md:mb-6">The bag is empty</h2>
+    <button onClick={onExplore} className="inline-flex items-center gap-4 border border-[#1a1714] px-8 py-4 uppercase text-[9px] tracking-[0.3em] font-black hover:bg-[#1a1714] hover:text-white transition-all group">
+      Explore Collections <MoveRight size={16} className="group-hover:translate-x-2 transition-transform" />
+    </button>
+  </div>
+);
+
+// --- MAIN COMPONENT: CartPage ---
 const CartPage = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // 2. Initialize navigate
+  const navigate = useNavigate();
   const containerRef = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -45,10 +140,11 @@ const CartPage = () => {
     return () => ctx.revert();
   }, [progress, cartItems.length]);
 
-  const handleCartAction = async (action, payload, itemId) => {
+  const handleCartAction = async (action, productId, itemId) => {
     try {
       setActiveItemId(itemId);
-      await dispatch(action(payload)).unwrap();
+      // Ensure the payload matches your slice requirements
+      await dispatch(action({ productId })).unwrap();
       await dispatch(fetchCart()).unwrap();
     } catch (error) {
       console.error("Cart action failed:", error);
@@ -60,14 +156,10 @@ const CartPage = () => {
   const handleCheckout = async () => {
     try {
       setPaymentLoading(true);
+      const shippingAddress = JSON.parse(localStorage.getItem("shippingAddress"));
 
-      const shippingAddress = JSON.parse(
-        localStorage.getItem("shippingAddress")
-      );
-
-      // 🚨 REMOVED ALERT - DIRECT REDIRECT
       if (!shippingAddress) {
-        navigate("/address"); // Use navigate for SPA feel
+        navigate("/address");
         return;
       }
 
@@ -89,17 +181,13 @@ const CartPage = () => {
               razorpay_signature: response.razorpay_signature,
             });
             dispatch(fetchCart());
+            navigate('/orders'); // Redirect to orders after success
           } catch (err) {
             console.log("Verification failed", err);
           }
         },
-        prefill: {
-          name: "Customer",
-          email: "customer@example.com",
-        },
-        theme: {
-          color: "#1a1714",
-        },
+        prefill: { name: "Customer", email: "customer@example.com" },
+        theme: { color: "#1a1714" },
       };
 
       const razorpayInstance = new Razorpay(options);
@@ -114,13 +202,6 @@ const CartPage = () => {
 
   return (
     <div ref={containerRef} className="relative min-h-screen bg-[#f8f5f2] text-[#1a1714] font-light selection:bg-[#1a1714] selection:text-white overflow-x-hidden">
-      <style>{`
-        @keyframes loading-bar {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-      `}</style>
-
       <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.04] mix-blend-multiply bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
 
       <div className="hidden lg:block absolute top-10 right-0 text-[18vw] font-serif italic text-[#1a1714]/[0.03] leading-none select-none pointer-events-none">
@@ -204,17 +285,5 @@ const CartPage = () => {
     </div>
   );
 };
-
-// ... keep CartItem as is ...
-
-const EmptyState = ({ onExplore }) => (
-  <div className="py-20 md:py-40 text-center reveal border-y border-[#1a1714]/5">
-    <ShoppingBag size={48} strokeWidth={0.5} className="opacity-20 mb-6 mx-auto" />
-    <h2 className="text-2xl md:text-4xl font-serif italic mb-4 md:mb-6">The bag is empty</h2>
-    <button onClick={onExplore} className="inline-flex items-center gap-4 border border-[#1a1714] px-8 py-4 uppercase text-[9px] tracking-[0.3em] font-black hover:bg-[#1a1714] hover:text-white transition-all group">
-      Explore Collections <MoveRight size={16} className="group-hover:translate-x-2 transition-transform" />
-    </button>
-  </div>
-);
 
 export default CartPage;
