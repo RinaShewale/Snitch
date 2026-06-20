@@ -382,34 +382,67 @@ export const removeFromCart = async (req, res) => {
 ====================== */
 export const createOrderController = async (req, res) => {
   try {
-    const cart = await getCartWithTotal(req.user._id);
+    const body = req.body || {};
+    const userId = req.user._id;
 
-    if (!cart?.items?.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Cart is empty",
-      });
+    const user = await User.findById(userId);
+
+    let items = [];
+    let amount = 0;
+
+    // =========================
+    // 🧾 SINGLE PRODUCT CHECKOUT
+    // =========================
+    if (body.items && body.items.length > 0) {
+      items = body.items;
+
+      for (const item of items) {
+        const product = await Product.findById(item.productId);
+        if (!product) continue;
+
+        let price = product.price.amount;
+
+        if (item.variantId) {
+          const variant = product.variants.id(item.variantId);
+          if (variant) {
+            price = variant.price?.amount || price;
+          }
+        }
+
+        amount += price * item.quantity;
+      }
     }
 
-    // 🔥 SAFE BODY HANDLING (IMPORTANT FIX)
-    const body = req.body || {};
-    const shippingAddress = body.shippingAddress;
+    // =========================
+    // 🛒 CART CHECKOUT
+    // =========================
+    else {
+      const cart = await getCartWithTotal(userId);
 
-    // 🔥 fallback from user profile (VERY IMPORTANT)
-    const user = await User.findById(req.user._id);
+      if (!cart?.items?.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Cart is empty",
+        });
+      }
 
-    const finalShippingAddress =
-      shippingAddress || user?.selectedAddress;
+      items = cart.items;
+      amount = cart.totalPrice;
+    }
 
-    // 🔥 VALIDATION
+    // =========================
+    // SHIPPING ADDRESS
+    // =========================
+    const shippingAddress =
+      body.shippingAddress || user?.selectedAddress;
+
     if (
-      !finalShippingAddress ||
-      !finalShippingAddress.fullName ||
-      !finalShippingAddress.phone ||
-      !finalShippingAddress.addressLine1 ||
-      !finalShippingAddress.city ||
-      !finalShippingAddress.state ||
-      !finalShippingAddress.postalCode
+      !shippingAddress?.fullName ||
+      !shippingAddress?.phone ||
+      !shippingAddress?.addressLine1 ||
+      !shippingAddress?.city ||
+      !shippingAddress?.state ||
+      !shippingAddress?.postalCode
     ) {
       return res.status(400).json({
         success: false,
@@ -417,23 +450,28 @@ export const createOrderController = async (req, res) => {
       });
     }
 
-    const amount = cart.totalPrice;
-
+    // =========================
+    // RAZORPAY ORDER
+    // =========================
     const razorpayOrder = await createOrder({
       amount,
       currency: "INR",
     });
 
+    // =========================
+    // SAVE PAYMENT
+    // =========================
     const payment = await paymentModel.create({
-      user: req.user._id,
+      user: userId,
       razorpay: {
         orderId: razorpayOrder.id,
       },
       amount,
       currency: "INR",
       status: "pending",
-      items: cart.items,
-      shippingAddress: finalShippingAddress, // ✅ FIXED
+      items,
+      shippingAddress,
+      isDirectPurchase: !!body.items, // 👈 important flag
     });
 
     return res.status(200).json({
@@ -441,7 +479,6 @@ export const createOrderController = async (req, res) => {
       order: razorpayOrder,
       payment,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -449,7 +486,6 @@ export const createOrderController = async (req, res) => {
     });
   }
 };
-
 
 
 export const verifyOrderController = async (req, res) => {
@@ -472,6 +508,9 @@ export const verifyOrderController = async (req, res) => {
       });
     }
 
+    // ======================
+    // VERIFY PAYMENT
+    // ======================
     const isValid = validatePaymentVerification(
       {
         order_id: razorpay_order_id,
@@ -492,9 +531,8 @@ export const verifyOrderController = async (req, res) => {
     }
 
     // ======================
-    // SUCCESS PAYMENT
+    // MARK PAYMENT PAID
     // ======================
-
     payment.status = "paid";
     payment.razorpay.paymentId = razorpay_payment_id;
     payment.razorpay.signature = razorpay_signature;
@@ -502,23 +540,23 @@ export const verifyOrderController = async (req, res) => {
     await payment.save();
 
     // ======================
-    // CREATE ORDER
+    // CREATE ORDER (WORKS FOR BOTH CART + SINGLE)
     // ======================
 
     const order = await Order.create({
       user: payment.user,
       payment: payment._id,
-      items: payment.items,
-      totalAmount: payment.amount,
+      items: payment.items, // 👈 SAME STRUCTURE FOR BOTH
+      totalAmount: payment.amount, // 👈 ALWAYS FROM BACKEND (SAFE)
       currency: payment.currency,
       status: "confirmed",
-      shippingAddress: payment.shippingAddress, // 🔥 FIXED
+      shippingAddress: payment.shippingAddress,
+      isDirectPurchase: payment.isDirectPurchase || false, // ⭐ IMPORTANT FLAG
     });
 
     // ======================
-    // REDUCE STOCK
+    // REDUCE STOCK ONLY FOR VARIANTS
     // ======================
-
     for (const item of payment.items) {
       if (!item.variant) continue;
 
@@ -536,19 +574,21 @@ export const verifyOrderController = async (req, res) => {
     }
 
     // ======================
-    // CLEAR CART
+    // CLEAR CART ONLY IF IT WAS CART ORDER
     // ======================
-
-    await Cart.findOneAndUpdate(
-      { user: payment.user },
-      { $set: { items: [] } }
-    );
+    if (!payment.isDirectPurchase) {
+      await Cart.findOneAndUpdate(
+        { user: payment.user },
+        { $set: { items: [] } }
+      );
+    }
 
     return res.status(200).json({
       success: true,
       message: "Payment verified successfully",
       orderId: order._id,
     });
+
   } catch (error) {
     return res.status(500).json({
       success: false,

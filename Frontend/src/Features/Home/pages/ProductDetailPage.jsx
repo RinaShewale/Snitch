@@ -5,14 +5,14 @@ import {
     Maximize, Minimize, Plus, Minus,
     ShoppingBag, Heart, Sparkles, Globe, Truck, Loader2 // Added Loader2
 } from "lucide-react";
-import { useProduct } from "../../products/hooks/useProduct"; 
+import { useProduct } from "../../products/hooks/useProduct";
 import { useDispatch } from "react-redux";
 import { addToCart, fetchCart } from "../../products/cart/redux/cart.slice";
-import { useWishlist } from "../../products/wishlist/hooks/useWishlist"; 
+import { useWishlist } from "../../products/wishlist/hooks/useWishlist";
 
 // --- NEW IMPORTS FOR CHECKOUT ---
 import { useRazorpay } from "react-razorpay";
-import { createOrderAPI, verifyPaymentAPI } from "../../products/cart/services/cart.api"; 
+import { createOrderAPI, verifyPaymentAPI } from "../../products/cart/services/cart.api";
 
 export const ProductDetailPage = () => {
     const { id } = useParams();
@@ -69,7 +69,7 @@ export const ProductDetailPage = () => {
 
     useEffect(() => {
         if (selectedColor && product) {
-            const variant = product.variants?.find(v => 
+            const variant = product.variants?.find(v =>
                 (v.color === selectedColor || v.attributes?.color === selectedColor)
             );
             if (variant && variant.images?.length > 0) {
@@ -84,9 +84,9 @@ export const ProductDetailPage = () => {
             const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
             gsap.set(".content-reveal, .image-stage, .stat-card", { opacity: 0 });
             tl.fromTo(".nav-reveal", { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 })
-              .fromTo(".image-stage", { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 1.2 }, "-=0.4")
-              .fromTo(".content-reveal", { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.1, duration: 1 }, "-=0.8")
-              .fromTo(".stat-card", { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.05, duration: 0.8 }, "-=1");
+                .fromTo(".image-stage", { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 1.2 }, "-=0.4")
+                .fromTo(".content-reveal", { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.1, duration: 1 }, "-=0.8")
+                .fromTo(".stat-card", { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.05, duration: 0.8 }, "-=1");
         }, containerRef);
         return () => ctx.revert();
     }, [loading, product]);
@@ -111,9 +111,9 @@ export const ProductDetailPage = () => {
             productId: id,
             variantId: currentVariant?._id || null,
             quantity,
-            selectedAttributes: { 
-                ...(selectedColor && { color: selectedColor }), 
-                ...(selectedSize && { size: selectedSize }) 
+            selectedAttributes: {
+                ...(selectedColor && { color: selectedColor }),
+                ...(selectedSize && { size: selectedSize })
             },
         }));
         dispatch(fetchCart());
@@ -121,42 +121,57 @@ export const ProductDetailPage = () => {
 
     // --- NEW LOGIC: Handle Direct Checkout (Buy Now) ---
     const handleDirectCheckout = async () => {
-        if (colors.length > 0 && !selectedColor) { alert("Please select a color"); return; }
-        if (sizes.length > 0 && !selectedSize) { alert("Please select a size"); return; }
+        if (colors.length > 0 && !selectedColor) {
+            alert("Please select a color");
+            return;
+        }
+
+        if (sizes.length > 0 && !selectedSize) {
+            alert("Please select a size");
+            return;
+        }
 
         try {
             setPaymentLoading(true);
 
-            // 1. Check for shipping address
+            // 1. Get shipping address
             const shippingAddress = JSON.parse(localStorage.getItem("shippingAddress"));
+
             if (!shippingAddress) {
                 navigate("/address");
                 return;
             }
 
-            // 2. Add item to cart first to ensure it's in the order
-            await dispatch(addToCart({
-                productId: id,
-                variantId: currentVariant?._id || null,
-                quantity,
-                selectedAttributes: { 
-                    ...(selectedColor && { color: selectedColor }), 
-                    ...(selectedSize && { size: selectedSize }) 
-                },
-            })).unwrap();
+            // 2. BUILD DIRECT PURCHASE PAYLOAD (NO CART TOUCH)
+            const directPurchasePayload = {
+                shippingAddress,
+                items: [
+                    {
+                        productId: id,
+                        variantId: currentVariant?._id || null,
+                        quantity,
+                        selectedAttributes: {
+                            ...(selectedColor && { color: selectedColor }),
+                            ...(selectedSize && { size: selectedSize }),
+                        },
+                    },
+                ],
+                isDirectPurchase: true,
+            };
 
-            // 3. Create the order
-            const res = await createOrderAPI(shippingAddress);
+            // 3. CREATE ORDER
+            const res = await createOrderAPI(directPurchasePayload);
             const order = res.data.order;
 
-            // 4. Configure Razorpay Options
+            // 4. RAZORPAY OPTIONS
             const options = {
-                key: "rzp_test_SpkPh7sxRTTlGW", // Replace with your actual key if needed
+                key: "rzp_test_SpkPh7sxRTTlGW",
                 amount: order.amount,
                 currency: order.currency,
-                name: "snitch",
-                description: `Purchase: ${product.title}`,
+                name: "Snitch",
+                description: `Buy Now: ${product.title}`,
                 order_id: order.id,
+
                 handler: async function (response) {
                     try {
                         await verifyPaymentAPI({
@@ -164,29 +179,37 @@ export const ProductDetailPage = () => {
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
                         });
+
                         dispatch(fetchCart());
-                        navigate('/orders'); // Redirect to orders success page
+                        navigate("/orders");
                     } catch (err) {
-                        console.error("Payment verification failed", err);
+                        console.error("Payment verification failed:", err);
                     }
                 },
+
                 prefill: {
                     name: "Customer",
                     email: "customer@example.com",
                 },
-                theme: { color: "#111111" },
+
+                theme: {
+                    color: "#111111",
+                },
             };
 
+            // 5. OPEN RAZORPAY
             const rzp = new Razorpay(options);
             rzp.open();
 
         } catch (err) {
-            console.error("Checkout process failed:", err);
+            console.error("Checkout failed:", err);
+            alert("Something went wrong. Please try again.");
         } finally {
             setPaymentLoading(false);
         }
     };
 
+    
     const handleWishlistToggle = () => {
         toggleWishlist(id);
         gsap.fromTo(heartRef.current, { scale: 0.7 }, { scale: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" });
@@ -207,17 +230,17 @@ export const ProductDetailPage = () => {
         <div className="min-h-screen bg-[#f3f1ef] text-[#111111] selection:bg-black selection:text-white pb-32 overflow-x-hidden" ref={containerRef}>
             {/* Grain Overlay */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-            
+
             <main className="max-w-[1300px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 pt-[110px] relative z-10">
                 {/* Image Section */}
                 <div className="lg:col-span-6 space-y-6">
                     <div className="image-stage relative aspect-square max-h-[600px] bg-white rounded-[2.5rem] overflow-hidden border border-neutral-100 shadow-sm group mx-auto w-full">
                         <div className="absolute inset-0 p-8 flex items-center justify-center">
-                            <img 
-                                ref={mainImageRef} 
-                                src={activeImageSrc} 
-                                className={`parallax-img w-full h-full transition-transform duration-700 ease-out ${isZoomed ? 'scale-150 object-cover' : 'object-contain'}`} 
-                                alt={product?.title} 
+                            <img
+                                ref={mainImageRef}
+                                src={activeImageSrc}
+                                className={`parallax-img w-full h-full transition-transform duration-700 ease-out ${isZoomed ? 'scale-150 object-cover' : 'object-contain'}`}
+                                alt={product?.title}
                             />
                         </div>
                         {productImages.length > 1 && (
@@ -297,12 +320,12 @@ export const ProductDetailPage = () => {
                                 <span className="w-8 text-center text-[11px] font-bold">{quantity}</span>
                                 <button onClick={() => setQuantity(quantity + 1)} className="w-8 h-8 flex items-center justify-center hover:bg-neutral-50 rounded-full"><Plus size={12} /></button>
                             </div>
-                            
+
                             <p className={`text-[9px] font-bold uppercase tracking-[0.2em] ${(currentVariant?.stock > 0 || currentVariant?.stock === undefined) ? 'text-emerald-500' : 'text-red-400'}`}>
-                                {currentVariant?.stock === 0 
-                                    ? '• Out of Stock' 
-                                    : (currentVariant?.stock > 0 && currentVariant?.stock < 10) 
-                                        ? `• Limited (${currentVariant.stock} left)` 
+                                {currentVariant?.stock === 0
+                                    ? '• Out of Stock'
+                                    : (currentVariant?.stock > 0 && currentVariant?.stock < 10)
+                                        ? `• Limited (${currentVariant.stock} left)`
                                         : '• In Stock'}
                             </p>
                         </div>
@@ -311,7 +334,7 @@ export const ProductDetailPage = () => {
                     <section className="content-reveal pt-6">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                             {/* UPDATED CHECKOUT BUTTON */}
-                            <button 
+                            <button
                                 onClick={handleDirectCheckout}
                                 disabled={paymentLoading || currentVariant?.stock === 0}
                                 className="flex-1 relative group overflow-hidden bg-[#111] text-white rounded-2xl py-6 transition-all duration-500 hover:bg-black hover:-translate-y-1 disabled:opacity-70"
@@ -329,17 +352,17 @@ export const ProductDetailPage = () => {
                             </button>
 
                             <div className="flex items-center gap-4 justify-center">
-                                <button 
-                                    onClick={handleAddToCart} 
+                                <button
+                                    onClick={handleAddToCart}
                                     disabled={currentVariant?.stock === 0}
                                     className={`w-16 h-16 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-black transition-all hover:border-black hover:scale-110 group relative ${currentVariant?.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <ShoppingBag size={20} />
                                     <span className="absolute -bottom-8 opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-bold uppercase tracking-widest text-neutral-400">Add</span>
                                 </button>
-                                
-                                <button 
-                                    onClick={handleWishlistToggle} 
+
+                                <button
+                                    onClick={handleWishlistToggle}
                                     className={`w-16 h-16 rounded-full border border-neutral-200 bg-white flex items-center justify-center transition-all hover:scale-110 group relative ${isFavorite ? 'text-red-500 border-red-100' : 'text-black hover:text-red-500'}`}
                                 >
                                     <div ref={heartRef}>
