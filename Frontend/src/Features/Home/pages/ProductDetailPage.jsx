@@ -3,16 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import {
     Maximize, Minimize, Plus, Minus,
-    ShoppingBag, Heart, Sparkles, Globe, Truck, Loader2 // Added Loader2
+    ShoppingBag, Heart, Sparkles, Globe, Truck, Loader2
 } from "lucide-react";
 import { useProduct } from "../../products/hooks/useProduct";
 import { useDispatch } from "react-redux";
 import { addToCart, fetchCart } from "../../products/cart/redux/cart.slice";
 import { useWishlist } from "../../products/wishlist/hooks/useWishlist";
 
-// --- NEW IMPORTS FOR CHECKOUT ---
+// --- UPDATED IMPORTS ---
 import { useRazorpay } from "react-razorpay";
-import { createOrderAPI, verifyPaymentAPI } from "../../products/cart/services/cart.api";
+import { createDirectOrderAPI, verifyPaymentAPI } from "../../products/cart/services/cart.api";
 
 export const ProductDetailPage = () => {
     const { id } = useParams();
@@ -20,11 +20,11 @@ export const ProductDetailPage = () => {
     const { handleGetProductById } = useProduct();
     const dispatch = useDispatch();
     const { toggleWishlist, isInWishlist } = useWishlist();
-    const { Razorpay } = useRazorpay(); // Initialize Razorpay hook
+    const { Razorpay } = useRazorpay();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [paymentLoading, setPaymentLoading] = useState(false); // Added for Checkout
+    const [paymentLoading, setPaymentLoading] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isZoomed, setIsZoomed] = useState(false);
     const [selectedColor, setSelectedColor] = useState("");
@@ -102,7 +102,6 @@ export const ProductDetailPage = () => {
         return colorMatches && sizeMatches;
     }) || (product?.variants?.length > 0 ? product.variants[0] : null);
 
-    // --- SHARED LOGIC: Add to Cart ---
     const handleAddToCart = async () => {
         if (colors.length > 0 && !selectedColor) { alert("Please select a color"); return; }
         if (sizes.length > 0 && !selectedSize) { alert("Please select a size"); return; }
@@ -119,27 +118,21 @@ export const ProductDetailPage = () => {
         dispatch(fetchCart());
     };
 
-    // --- NEW LOGIC: Handle Direct Checkout (Buy Now) ---
+    // --- UPDATED DIRECT CHECKOUT LOGIC ---
     const handleDirectCheckout = async () => {
-        if (colors.length > 0 && !selectedColor) {
-            alert("Please select a color");
-            return;
-        }
-
-        if (sizes.length > 0 && !selectedSize) {
-            alert("Please select a size");
-            return;
-        }
+        if (colors.length > 0 && !selectedColor) { alert("Please select a color"); return; }
+        if (sizes.length > 0 && !selectedSize) { alert("Please select a size"); return; }
 
         try {
             setPaymentLoading(true);
 
-            const shippingAddress = JSON.parse(localStorage.getItem("shippingAddress"));
-
-            if (!shippingAddress) {
+            const addressData = localStorage.getItem("shippingAddress");
+            if (!addressData) {
+                alert("Please add a shipping address first.");
                 navigate("/address");
                 return;
             }
+            const shippingAddress = JSON.parse(addressData);
 
             const payload = {
                 productId: id,
@@ -154,17 +147,22 @@ export const ProductDetailPage = () => {
 
             // 1. Create direct order
             const res = await createDirectOrderAPI(payload);
-            const order = res.data.order;
+            
+            // Check if backend nested the order object or returned it directly
+            const orderData = res.data.order || res.data;
+
+            if (!orderData || !orderData.id) {
+                throw new Error("Invalid order response from server");
+            }
 
             // 2. Razorpay options
             const options = {
-                key: "rzp_test_SpkPh7sxRTTlGW",
-                amount: order.amount,
-                currency: order.currency,
+                key: "rzp_test_SpkPh7sxRTTlGW", // Ideally use process.env.REACT_APP_RAZORPAY_KEY
+                amount: orderData.amount,
+                currency: orderData.currency || "INR",
                 name: "Snitch",
-                description: `Buy Now: ${product.title}`,
-                order_id: order.id,
-
+                description: `Purchase: ${product.title}`,
+                order_id: orderData.id,
                 handler: async function (response) {
                     try {
                         await verifyPaymentAPI({
@@ -172,22 +170,21 @@ export const ProductDetailPage = () => {
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
                         });
-
                         dispatch(fetchCart());
                         navigate("/orders");
                     } catch (err) {
                         console.error("Verification failed:", err);
+                        alert("Payment verification failed.");
                     }
                 },
-
                 prefill: {
                     name: "Customer",
                     email: "customer@example.com",
                 },
-
-                theme: {
-                    color: "#111111",
-                },
+                theme: { color: "#111111" },
+                modal: {
+                    ondismiss: () => setPaymentLoading(false)
+                }
             };
 
             const rzp = new Razorpay(options);
@@ -195,7 +192,8 @@ export const ProductDetailPage = () => {
 
         } catch (err) {
             console.error("Checkout failed:", err);
-            alert("Something went wrong");
+            const errorMsg = err.response?.data?.message || err.message || "Checkout failed";
+            alert(errorMsg);
         } finally {
             setPaymentLoading(false);
         }
@@ -219,7 +217,6 @@ export const ProductDetailPage = () => {
 
     return (
         <div className="min-h-screen bg-[#f3f1ef] text-[#111111] selection:bg-black selection:text-white pb-32 overflow-x-hidden" ref={containerRef}>
-            {/* Grain Overlay */}
             <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
             <main className="max-w-[1300px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 pt-[110px] relative z-10">
@@ -324,7 +321,6 @@ export const ProductDetailPage = () => {
 
                     <section className="content-reveal pt-6">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                            {/* UPDATED CHECKOUT BUTTON */}
                             <button
                                 onClick={handleDirectCheckout}
                                 disabled={paymentLoading || currentVariant?.stock === 0}
@@ -368,7 +364,7 @@ export const ProductDetailPage = () => {
                     </section>
                 </div>
             </main>
-            {/* Styles remain unchanged */}
+
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
                 body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FAFAFA; }
