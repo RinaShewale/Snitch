@@ -120,15 +120,20 @@ export const ProductDetailPage = () => {
 
     // --- UPDATED DIRECT CHECKOUT LOGIC ---
     const handleDirectCheckout = async () => {
+        console.log("1. Checkout Started");
+
         if (colors.length > 0 && !selectedColor) { alert("Please select a color"); return; }
         if (sizes.length > 0 && !selectedSize) { alert("Please select a size"); return; }
 
         try {
             setPaymentLoading(true);
 
+            // Check Address
             const addressData = localStorage.getItem("shippingAddress");
+            console.log("2. Address from Storage:", addressData);
+
             if (!addressData) {
-                alert("Please add a shipping address first.");
+                alert("Please add a shipping address in your profile first.");
                 navigate("/address");
                 return;
             }
@@ -145,25 +150,32 @@ export const ProductDetailPage = () => {
                 shippingAddress,
             };
 
+            console.log("3. Sending Payload:", payload);
+
             // 1. Create direct order
             const res = await createDirectOrderAPI(payload);
-            
-            // Check if backend nested the order object or returned it directly
+            console.log("4. Full API Response:", res.data);
+
+            // Determine if order is inside res.data.order or just res.data
             const orderData = res.data.order || res.data;
 
             if (!orderData || !orderData.id) {
-                throw new Error("Invalid order response from server");
+                console.error("Order Data is missing ID:", orderData);
+                throw new Error("Server response missing Order ID. Check console.");
             }
+
+            console.log("5. Initializing Razorpay with ID:", orderData.id);
 
             // 2. Razorpay options
             const options = {
-                key: "rzp_test_SpkPh7sxRTTlGW", // Ideally use process.env.REACT_APP_RAZORPAY_KEY
-                amount: orderData.amount,
+                key: "rzp_test_SpkPh7sxRTTlGW",
+                amount: orderData.amount, // amount in paisa
                 currency: orderData.currency || "INR",
                 name: "Snitch",
-                description: `Purchase: ${product.title}`,
+                description: `Product Purchase`,
                 order_id: orderData.id,
                 handler: async function (response) {
+                    console.log("6. Payment Success Response:", response);
                     try {
                         await verifyPaymentAPI({
                             razorpay_order_id: response.razorpay_order_id,
@@ -173,8 +185,8 @@ export const ProductDetailPage = () => {
                         dispatch(fetchCart());
                         navigate("/orders");
                     } catch (err) {
-                        console.error("Verification failed:", err);
-                        alert("Payment verification failed.");
+                        console.error("Verification Error:", err);
+                        alert("Payment verification failed on server.");
                     }
                 },
                 prefill: {
@@ -183,22 +195,31 @@ export const ProductDetailPage = () => {
                 },
                 theme: { color: "#111111" },
                 modal: {
-                    ondismiss: () => setPaymentLoading(false)
+                    ondismiss: () => {
+                        console.log("7. Razorpay Modal Closed");
+                        setPaymentLoading(false);
+                    }
                 }
             };
+
+            if (typeof Razorpay === 'undefined' && !Razorpay) {
+                throw new Error("Razorpay SDK failed to load. Check your useRazorpay hook.");
+            }
 
             const rzp = new Razorpay(options);
             rzp.open();
 
         } catch (err) {
-            console.error("Checkout failed:", err);
-            const errorMsg = err.response?.data?.message || err.message || "Checkout failed";
-            alert(errorMsg);
+            console.error("CHECKOUT CRASHED:", err);
+            // This will show you the EXACT error message instead of "Something went wrong"
+            alert("Error: " + (err.response?.data?.message || err.message || "Unknown Error"));
         } finally {
             setPaymentLoading(false);
         }
     };
 
+
+    
     const handleWishlistToggle = () => {
         toggleWishlist(id);
         gsap.fromTo(heartRef.current, { scale: 0.7 }, { scale: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" });
