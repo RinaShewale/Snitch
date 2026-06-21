@@ -38,15 +38,15 @@ const WishlistPage = () => {
 
         {wishlistItems.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {wishlistItems.map((product) => (
+            {wishlistItems?.[0]?.products?.map((product) => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 border border-dashed border-neutral-200 rounded-[3rem] bg-white">
             <p className="text-neutral-400 font-serif italic text-lg mb-8">Your wishlist is currently empty</p>
-            <Link 
-              to="/new" 
+            <Link
+              to="/new"
               className="group flex items-center gap-4 bg-black text-white px-8 py-4 rounded-full transition-all hover:scale-105"
             >
               <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Explore Collection</span>

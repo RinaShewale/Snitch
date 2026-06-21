@@ -70,7 +70,7 @@ export const getWishlist = async (req, res) => {
 
     const wishlist = await Wishlist.findOne({ user: userId }).populate({
       path: "products",
-      select: "name price images description variants", // adjust fields as needed
+      select: "title price images description variants", // adjust fields as needed
     });
 
     if (!wishlist) {
