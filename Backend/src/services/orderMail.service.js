@@ -1,28 +1,7 @@
-import nodemailer from "nodemailer";
-import dns from "dns";
+import { Resend } from "resend";
+import { config } from "../config/config.js";
 
-dns.setDefaultResultOrder("ipv4first");
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
-
-transporter.verify((error) => {
-  if (error) {
-    console.log("❌ Order Mailer Error:", error.message);
-  } else {
-    console.log("✅ Order Mailer Ready");
-  }
-});
+const resend = new Resend(config.RESEND_API_KEY);
 
 const template = ({
   name,
@@ -173,10 +152,6 @@ const template = ({
             trackingNumber
               ? `
               <div style="text-align:center">
-                <a href="#" class="button">
-                  Track Your Package
-                </a>
-
                 <p style="font-size:12px;color:#64748b">
                   Tracking Number:
                   <b>${trackingNumber}</b>
@@ -185,8 +160,7 @@ const template = ({
             `
               : `
               <p style="text-align:center;color:#64748b">
-                We'll notify you once a tracking
-                number is generated.
+                We'll notify you once a tracking number is generated.
               </p>
             `
           }
@@ -217,18 +191,18 @@ const template = ({
 
 export const sendOrderStatusEmail = async (data) => {
   try {
-    const info = await transporter.sendMail({
-      from: `"Shop" <${process.env.EMAIL_USER}>`,
+    const info = await resend.emails.send({
+      from: "Shop <onboarding@resend.dev>",
       to: data.email,
       subject: `Update for Order #${data.orderId}: ${data.status}`,
       html: template(data),
     });
 
-    console.log("📧 Order email sent:", info.response);
+    console.log("📧 Order email sent:", info);
 
     return info;
   } catch (error) {
-    console.log("❌ Failed to send order email:", error.message);
+    console.error("❌ Failed to send order email:", error);
     throw error;
   }
 };

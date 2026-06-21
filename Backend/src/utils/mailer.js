@@ -1,32 +1,30 @@
-import nodemailer from "nodemailer";
-import dns from "dns";
+import { Resend } from "resend";
 import { config } from "../config/config.js";
 
-// Force IPv4
-dns.setDefaultResultOrder("ipv4first");
+const resend = new Resend(config.RESEND_API_KEY);
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: config.EMAIL_USER,
-    pass: config.EMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+export const sendEmail = async ({
+  to,
+  subject,
+  html,
+  text,
+}) => {
+  try {
+    const data = await resend.emails.send({
+      from: "onboarding@resend.dev", // change after domain verification
+      to,
+      subject,
+      html,
+      text,
+    });
 
-transporter.verify((error) => {
-  if (error) {
-    console.log("❌ Mailer error:", error);
-  } else {
-    console.log("✅ Mailer is ready");
+    console.log("✅ Email sent:", data);
+
+    return data;
+  } catch (error) {
+    console.error("❌ Email send failed:", error);
+    throw error;
   }
-});
+};
 
-export default transporter;
+export default resend;

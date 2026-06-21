@@ -1,6 +1,6 @@
 import User from "../models/user.model.js";
 import { generateToken } from "../utils/generateToken.js";
-import transporter from "../utils/mailer.js";
+import { sendEmail } from "../utils/mailer.js";
 import crypto from "crypto";
 
 
@@ -173,6 +173,7 @@ export const logoutUser = (req, res) => {
 
 
 // ================= FORGOT PASSWORD =================
+// ================= FORGOT PASSWORD =================
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -193,7 +194,7 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    // generate secure token
+    // Generate secure token
     const token = crypto.randomBytes(32).toString("hex");
 
     user.resetPasswordToken = token;
@@ -204,41 +205,60 @@ export const forgotPassword = async (req, res) => {
     const resetLink = `https://snitch-fwb7.onrender.com/reset-password/${token}`;
 
     try {
-      await transporter.sendMail({
-        from: `"Support" <${process.env.EMAIL_USER}>`,
+      await sendEmail({
         to: email,
         subject: "Password Reset Request",
         html: `
-          <div style="font-family:Arial;padding:10px">
-            <h2>Password Reset</h2>
-            <p>Click below to reset your password:</p>
+          <div style="font-family:Arial;padding:20px">
+            <h2>Password Reset 🔐</h2>
 
-            <a href="${resetLink}" 
-               style="display:inline-block;padding:10px 15px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:5px">
+            <p>
+              You requested to reset your password.
+              Click the button below:
+            </p>
+
+            <a
+              href="${resetLink}"
+              style="
+                display:inline-block;
+                padding:12px 20px;
+                background:#4f46e5;
+                color:#ffffff;
+                text-decoration:none;
+                border-radius:6px;
+                font-weight:bold;
+              "
+            >
               Reset Password
             </a>
 
-            <p style="margin-top:10px;color:gray">
-              This link expires in 15 minutes.
+            <p style="margin-top:15px;color:gray">
+              This link will expire in 15 minutes.
+            </p>
+
+            <p style="color:gray">
+              If you didn't request this,
+              please ignore this email.
             </p>
           </div>
         `,
       });
-
     } catch (mailError) {
-      console.log("❌ Email send failed:", mailError.message);
+      console.log("❌ Email send failed:", mailError);
+
       return res.status(500).json({
         success: false,
         message: "Failed to send email ❌",
       });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       message: "Reset link sent successfully ✅",
     });
-
   } catch (err) {
+    console.log(err);
+
     return res.status(500).json({
       success: false,
       message: err.message,
