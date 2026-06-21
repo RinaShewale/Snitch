@@ -7,18 +7,30 @@ import {
 // ➤ FETCH REVIEWS
 export const fetchReviews = createAsyncThunk(
   "reviews/fetch",
-  async (productId) => {
-    const res = await getProductReviewsAPI(productId);
-    return res.data.reviews;
+  async (productId, { rejectWithValue }) => {
+    try {
+      const res = await getProductReviewsAPI(productId);
+      return res.data.reviews;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch reviews"
+      );
+    }
   }
 );
 
 // ➤ ADD REVIEW
 export const addReview = createAsyncThunk(
   "reviews/add",
-  async (data) => {
-    const res = await createReviewAPI(data);
-    return res.data.review;
+  async (formData, { rejectWithValue }) => {
+    try {
+      const res = await createReviewAPI(formData);
+      return res.data.review;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to add review"
+      );
+    }
   }
 );
 
@@ -33,6 +45,7 @@ const reviewSlice = createSlice({
   reducers: {
     clearReviews: (state) => {
       state.items = [];
+      state.error = null;
     },
   },
 
@@ -48,12 +61,15 @@ const reviewSlice = createSlice({
       })
       .addCase(fetchReviews.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload;
       })
 
       // ADD
       .addCase(addReview.fulfilled, (state, action) => {
         state.items.unshift(action.payload);
+      })
+      .addCase(addReview.rejected, (state, action) => {
+        state.error = action.payload;
       });
   },
 });

@@ -97,7 +97,7 @@ export default function ProductReviewSection({ productId }) {
 
   return (
     <div className="lg:col-span-12 w-full mt-24 border-t border-[#1a1714]/10 pt-16 font-sans">
-      
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-10 gap-4">
         <div>
@@ -184,10 +184,10 @@ export default function ProductReviewSection({ productId }) {
             const avatarColor = getAvatarBg(r.name);
             const reviewDate = r.createdAt
               ? new Date(r.createdAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
               : "Recent Purchase";
 
             return (
@@ -250,6 +250,7 @@ export default function ProductReviewSection({ productId }) {
           loading={submitting}
           onClose={() => setOpenForm(false)}
           onSubmit={handleSubmit}
+          productId={productId}
         />
       )}
 

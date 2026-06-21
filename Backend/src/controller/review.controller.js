@@ -1,66 +1,108 @@
 import Review from "../models/review.model.js";
 import { uploadFile } from "../services/storage.service.js";
 
-// ➤ CREATE REVIEW
 export const createReview = async (req, res) => {
   try {
+    // ✅ debug (keep for now)
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized ❌",
+      });
+    }
+
     const { productId, rating, comment } = req.body;
+
+    if (!productId || !rating || !comment) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing fields ❌",
+      });
+    }
 
     let images = [];
 
-    // ⭐ Upload images if exist
-    if (req.files && req.files.length > 0) {
+    // ✅ SAFE IMAGE HANDLING (NO CRASH EVER)
+    if (Array.isArray(req.files) && req.files.length > 0) {
       for (const file of req.files) {
-        const result = await uploadFile({
-          buffer: file.buffer,
-          fileName: file.originalname,
-          folder: "reviews",
-        });
+        try {
+          if (!file?.buffer) continue;
 
-        images.push({
-          url: result.url,
-          fileId: result.fileId,
-        });
+          const result = await uploadFile({
+            buffer: file.buffer,
+            fileName: file.originalname,
+            folder: "reviews",
+          });
+
+          if (result?.url) {
+            images.push({
+              url: result.url,
+              fileId: result.fileId,
+            });
+          }
+        } catch (err) {
+          // ❌ never break API
+          console.log("Image upload failed:", err.message);
+        }
       }
     }
 
     const review = await Review.create({
       productId,
-      userId: req.user._id,
-      name: req.user.name,
-      rating,
+      userId: user._id,
+      name: user.name,
+      rating: Number(rating),
       comment,
-      images, // ⭐ saved here
+      images,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Review created successfully",
+      message: "Review created successfully ✅",
       review,
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.log("CREATE REVIEW ERROR:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Internal Server Error",
     });
   }
 };
 
-// ➤ GET REVIEWS FOR PRODUCT
+
+
 export const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
+
+    if (!productId) {
+      return res.status(400).json({
+        success: false,
+        message: "productId required ❌",
+      });
+    }
 
     const reviews = await Review.find({ productId })
       .populate("userId", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      reviews,
+      reviews: reviews || [],
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.log("❌ GET REVIEWS ERROR:", error);
+
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

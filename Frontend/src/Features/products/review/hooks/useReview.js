@@ -5,12 +5,11 @@ import { fetchReviews, addReview, clearReviews } from "../redux/review.slice";
 export const useReview = (productId) => {
   const dispatch = useDispatch();
 
-  // ✅ SAFE STATE ACCESS
   const { items = [], loading = false, error = null } = useSelector(
     (state) => state.reviews || {}
   );
 
-  // ➤ Load reviews when productId changes
+  // ➤ Load reviews
   useEffect(() => {
     if (!productId) return;
 
@@ -21,16 +20,16 @@ export const useReview = (productId) => {
     };
   }, [productId, dispatch]);
 
-  // ➤ Submit review (with proper error handling and FormData construction)
+  // ➤ Submit review
   const submitReview = async ({ productId, rating, comment, images }) => {
     try {
       const formData = new FormData();
+
       formData.append("productId", productId);
-      formData.append("rating", Number(rating));
+      formData.append("rating", rating);
       formData.append("comment", comment);
 
-      // Append image files if they exist
-      if (images && images.length > 0) {
+      if (images?.length) {
         images.forEach((file) => {
           formData.append("images", file);
         });
@@ -38,14 +37,13 @@ export const useReview = (productId) => {
 
       const res = await dispatch(addReview(formData));
 
-      // Redux thunk response unwrap
       if (addReview.fulfilled.match(res)) {
         return res.payload;
       }
 
-      throw new Error("Failed to submit review");
+      throw new Error("Review failed");
     } catch (err) {
-      console.error("Review submit error:", err);
+      console.error("Submit Review Error:", err);
       throw err;
     }
   };

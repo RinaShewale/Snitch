@@ -387,8 +387,10 @@ export const ProductDetailPage = () => {
 
 
                 </div>
-                <ProductReviewSection productId={id} />
+
             </main>
+
+            <ProductReviewSection productId={id} />
 
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
