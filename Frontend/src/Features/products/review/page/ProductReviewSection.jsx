@@ -3,10 +3,7 @@ import { useReview } from "../hooks/useReview";
 import ReviewForm from "./ReviewForm";
 import { Star, MessageSquare, CheckCircle2, X, ArrowRight, LayoutGrid, MessageCircle } from "lucide-react";
 
-// --- HELPERS (Defined outside to prevent initialization errors) ---
-
-const BASE_URL = ""; // Change this if your images are relative paths
-
+// Helper to get name safely
 const getUserName = (userObj) => {
   if (!userObj) return "Verified Buyer";
   if (userObj.fullName) return userObj.fullName;
@@ -26,21 +23,19 @@ const renderStars = (rating, size = 12) => (
   </div>
 );
 
-// --- MAIN COMPONENT ---
-
 export default function ProductReviewSection({ productId }) {
   const { reviews = [], loading, submitReview } = useReview(productId);
   const [openForm, setOpenForm] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState("reviews"); // 'reviews' or 'gallery'
+  const [drawerTab, setDrawerTab] = useState("reviews");
   const [submitting, setSubmitting] = useState(false);
   const [zoomImage, setZoomImage] = useState(null);
 
-  // Extract all images for the gallery tab using useMemo for performance
+  // Updated to handle the [{url: "..."}] structure from DB
   const allUserImages = useMemo(() => {
     return reviews.flatMap(r => 
       (r.images || []).map(img => ({
-        url: typeof img === 'string' ? img : img?.url,
+        url: typeof img === 'string' ? img : img?.url, // Handle both string or object
         userName: getUserName(r.userId),
         date: r.createdAt
       }))
@@ -59,7 +54,9 @@ export default function ProductReviewSection({ productId }) {
     }
   };
 
-  const avgRating = reviews.length ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : "0.0";
+  const avgRating = reviews.length 
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) 
+    : "0.0";
 
   const ReviewCard = ({ r, compact = false }) => {
     return (
@@ -85,16 +82,18 @@ export default function ProductReviewSection({ productId }) {
           </div>
         </div>
         <p className="text-sm text-neutral-600 leading-relaxed italic font-light">"{r.comment}"</p>
+        
+        {/* IMAGE LISTING FIX */}
         {r.images?.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-6">
             {r.images.map((img, i) => {
-              const url = typeof img === 'string' ? img : img?.url;
-              const finalUrl = url?.startsWith('http') ? url : `${BASE_URL}${url}`;
+              const imageUrl = typeof img === 'string' ? img : img?.url;
+              if (!imageUrl) return null;
               return (
                 <div key={i} className="relative overflow-hidden rounded-xl w-14 h-14 bg-neutral-50 border border-neutral-100">
                   <img 
-                    src={finalUrl} 
-                    onClick={() => setZoomImage(finalUrl)} 
+                    src={imageUrl} 
+                    onClick={() => setZoomImage(imageUrl)} 
                     className="w-full h-full object-cover cursor-zoom-in hover:opacity-80 transition" 
                     alt="User Upload" 
                   />
@@ -110,7 +109,7 @@ export default function ProductReviewSection({ productId }) {
   return (
     <div className="max-w-[1300px] mx-auto px-6 md:px-12 w-full mt-32 border-t border-neutral-100 pt-24 pb-24 font-sans">
       
-      {/* SECTION HEADER */}
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-12 mb-20">
         <div>
           <p className="text-[10px] uppercase tracking-[0.5em] text-neutral-400 mb-4 font-bold">Reviews</p>
@@ -121,7 +120,7 @@ export default function ProductReviewSection({ productId }) {
           <div className="text-center">
             <div className="text-6xl font-serif mb-1">{avgRating}</div>
             <div className="flex justify-center">{renderStars(Math.round(Number(avgRating)), 14)}</div>
-            <p className="text-[8px] uppercase tracking-[0.2em] text-neutral-400 mt-4 font-bold">Average Score</p>
+            <p className="text-[8px] uppercase tracking-[0.2em] text-neutral-400 mt-4 font-bold">Average Score ({reviews.length})</p>
           </div>
           <div className="hidden sm:block h-16 w-[1px] bg-neutral-200" />
           <button 
@@ -133,7 +132,7 @@ export default function ProductReviewSection({ productId }) {
         </div>
       </div>
 
-      {/* FEATURED PREVIEW */}
+      {/* REVIEWS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {loading ? (
             <div className="col-span-3 text-center py-20 animate-pulse text-neutral-400 text-[10px] uppercase tracking-widest font-bold">Syncing Stories...</div>
@@ -147,7 +146,7 @@ export default function ProductReviewSection({ productId }) {
         )}
       </div>
 
-      {/* TRIGGER BUTTON */}
+      {/* EXPLORE MORE BUTTON */}
       {reviews.length > 0 && (
         <div className="mt-20 flex justify-center">
             <button 
@@ -164,29 +163,21 @@ export default function ProductReviewSection({ productId }) {
         </div>
       )}
 
-      {/* SIDE DRAWER */}
+      {/* DRAWER & ZOOM MODALS */}
       {isDrawerOpen && (
         <div className="fixed inset-0 z-[500] flex justify-end">
             <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" onClick={() => setIsDrawerOpen(false)} />
-            <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
-                
+            <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col">
                 <div className="p-10 border-b border-neutral-100 flex justify-between items-center">
                     <h3 className="font-serif italic text-3xl">Community</h3>
-                    <button onClick={() => setIsDrawerOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full border border-neutral-100 hover:bg-neutral-50 transition"><X size={18} /></button>
+                    <button onClick={() => setIsDrawerOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full border border-neutral-100"><X size={18} /></button>
                 </div>
-
-                {/* TABS */}
+                
                 <div className="flex px-10 py-4 gap-8 border-b border-neutral-50 bg-neutral-50/30">
-                    <button 
-                        onClick={() => setDrawerTab("reviews")}
-                        className={`text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 pb-2 transition-all ${drawerTab === 'reviews' ? 'text-black border-b-2 border-black' : 'text-neutral-400'}`}
-                    >
+                    <button onClick={() => setDrawerTab("reviews")} className={`text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 pb-2 ${drawerTab === 'reviews' ? 'text-black border-b-2 border-black' : 'text-neutral-400'}`}>
                         <MessageCircle size={14} /> Reviews ({reviews.length})
                     </button>
-                    <button 
-                        onClick={() => setDrawerTab("gallery")}
-                        className={`text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 pb-2 transition-all ${drawerTab === 'gallery' ? 'text-black border-b-2 border-black' : 'text-neutral-400'}`}
-                    >
+                    <button onClick={() => setDrawerTab("gallery")} className={`text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 pb-2 ${drawerTab === 'gallery' ? 'text-black border-b-2 border-black' : 'text-neutral-400'}`}>
                         <LayoutGrid size={14} /> Gallery ({allUserImages.length})
                     </button>
                 </div>
@@ -198,44 +189,28 @@ export default function ProductReviewSection({ productId }) {
                         </div>
                     ) : (
                         <div className="grid grid-cols-3 gap-2">
-                            {allUserImages.length > 0 ? allUserImages.map((img, i) => {
-                                const finalUrl = img.url?.startsWith('http') ? img.url : `${BASE_URL}${img.url}`;
-                                return (
-                                    <div key={i} className="aspect-square relative group overflow-hidden rounded-lg bg-neutral-100 border border-neutral-200">
-                                        <img 
-                                            src={finalUrl} 
-                                            onClick={() => setZoomImage(finalUrl)}
-                                            className="w-full h-full object-cover cursor-zoom-in group-hover:scale-110 transition-transform duration-700" 
-                                            alt="Community" 
-                                        />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 pointer-events-none">
-                                            <p className="text-[8px] text-white font-bold uppercase truncate">{img.userName}</p>
-                                        </div>
-                                    </div>
-                                )
-                            }) : (
-                                <div className="col-span-3 py-20 text-center text-neutral-400 text-xs italic">No images shared yet.</div>
-                            )}
+                            {allUserImages.map((img, i) => (
+                                <div key={i} className="aspect-square relative group overflow-hidden rounded-lg bg-neutral-100">
+                                    <img 
+                                        src={img.url} 
+                                        onClick={() => setZoomImage(img.url)}
+                                        className="w-full h-full object-cover cursor-zoom-in" 
+                                        alt="Community" 
+                                    />
+                                </div>
+                            ))}
                         </div>
                     )}
-                </div>
-
-                <div className="p-8 bg-neutral-50 border-t border-neutral-100">
-                    <button onClick={() => { setIsDrawerOpen(false); setOpenForm(true); }} className="w-full py-5 bg-neutral-900 text-white rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-black transition-all">
-                        Write a review
-                    </button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* MODALS */}
       {openForm && <ReviewForm loading={submitting} onClose={() => setOpenForm(false)} onSubmit={handleSubmit} productId={productId} />}
       
       {zoomImage && (
-        <div className="fixed inset-0 bg-white/95 backdrop-blur-2xl z-[600] flex flex-col items-center justify-center p-8 cursor-zoom-out" onClick={() => setZoomImage(null)}>
-          <img src={zoomImage} className="max-w-full max-h-[80vh] rounded-3xl shadow-2xl object-contain animate-in zoom-in-95" alt="Enlarged" />
-          <button className="mt-8 text-[10px] font-bold uppercase tracking-widest text-neutral-400">Click anywhere to close</button>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[600] flex items-center justify-center p-8" onClick={() => setZoomImage(null)}>
+          <img src={zoomImage} className="max-w-full max-h-[90vh] rounded-lg shadow-2xl" alt="Enlarged" />
         </div>
       )}
     </div>
