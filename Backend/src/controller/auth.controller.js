@@ -177,12 +177,23 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required ❌",
+      });
+    }
+
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found ❌" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found ❌",
+      });
     }
 
+    // generate secure token
     const token = crypto.randomBytes(32).toString("hex");
 
     user.resetPasswordToken = token;
@@ -192,22 +203,39 @@ export const forgotPassword = async (req, res) => {
 
     const resetLink = `https://snitch-fwb7.onrender.com/reset-password/${token}`;
 
-    await transporter.sendMail({
-      to: email,
-      subject: "Password Reset Request",
-      html: `
-        <div>
-          <h2>Reset Password</h2>
-          <p>Click below link:</p>
-          <a href="${resetLink}">${resetLink}</a>
-          <p>Valid for 15 minutes</p>
-        </div>
-      `,
-    });
+    try {
+      await transporter.sendMail({
+        from: `"Support" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Password Reset Request",
+        html: `
+          <div style="font-family:Arial;padding:10px">
+            <h2>Password Reset</h2>
+            <p>Click below to reset your password:</p>
+
+            <a href="${resetLink}" 
+               style="display:inline-block;padding:10px 15px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:5px">
+              Reset Password
+            </a>
+
+            <p style="margin-top:10px;color:gray">
+              This link expires in 15 minutes.
+            </p>
+          </div>
+        `,
+      });
+
+    } catch (mailError) {
+      console.log("❌ Email send failed:", mailError.message);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send email ❌",
+      });
+    }
 
     return res.json({
       success: true,
-      message: "Reset link sent ✅",
+      message: "Reset link sent successfully ✅",
     });
 
   } catch (err) {
@@ -217,6 +245,7 @@ export const forgotPassword = async (req, res) => {
     });
   }
 };
+
 
 
 // ================= RESET PASSWORD =================
