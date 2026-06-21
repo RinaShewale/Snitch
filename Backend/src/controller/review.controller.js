@@ -7,13 +7,14 @@ export const createReview = async (req, res) => {
     
     let imageUrls = [];
     
+    // req.files is an array because we used upload.array() in routes
     if (req.files && req.files.length > 0) {
-      // Pass the entire 'file' object (which contains .buffer and .originalname)
       const uploadPromises = req.files.map(file => uploadFile(file));
       const results = await Promise.all(uploadPromises);
       
+      // Ensure we extract the URL string from whatever your storage service returns
       imageUrls = results.map(result => ({
-        url: result.url // ImageKit returns 'url' or 'thumbnailUrl'
+        url: result.secure_url || result.url || (typeof result === 'string' ? result : "")
       }));
     }
 
@@ -22,20 +23,25 @@ export const createReview = async (req, res) => {
       userId: req.user._id,
       rating: Number(rating),
       comment,
-      images: imageUrls,
+      images: imageUrls, 
     });
 
     const populatedReview = await Review.findById(newReview._id)
-      .populate({ path: "userId", select: "fullName email avatar" })
+      .populate({
+        path: "userId",
+        select: "fullName email avatar"
+      })
       .lean();
 
-    return res.status(201).json({ success: true, review: populatedReview });
+    return res.status(201).json({
+      success: true,
+      review: populatedReview,
+    });
   } catch (err) {
-    console.error("Review Creation Error:", err);
+    console.error("Create Review Error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 export const getProductReviews = async (req, res) => {
   try {
