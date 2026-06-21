@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Star, X, Camera, Plus, Trash2 } from "lucide-react";
+import { Star, X, Camera, Trash2 } from "lucide-react";
 
 export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
   const [rating, setRating] = useState(5);
@@ -8,16 +8,13 @@ export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
 
-  // Clean up memory from object URLs
   useEffect(() => {
     return () => previews.forEach((p) => URL.revokeObjectURL(p));
   }, [previews]);
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files || []);
-    if (images.length + files.length > 5) {
-      return alert("You can only upload up to 5 images.");
-    }
+    if (images.length + files.length > 5) return alert("Max 5 images allowed");
     
     const newPreviews = files.map((file) => URL.createObjectURL(file));
     setImages((prev) => [...prev, ...files]);
@@ -25,133 +22,106 @@ export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
   };
 
   const removeImage = (index) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
   };
 
   const handleSubmit = async () => {
-    if (!comment.trim()) return alert("Please share a few words about your experience.");
+    if (!comment.trim()) return alert("Please write a comment");
     
     const formData = new FormData();
     formData.append("productId", productId);
     formData.append("rating", String(rating));
     formData.append("comment", comment);
-    images.forEach((file) => formData.append("images", file));
-    
+
+    // IMPORTANT: Check your backend. If your backend uses 
+    // upload.array('images'), use "images". 
+    // If it uses upload.array('image'), use "image".
+    images.forEach((file) => {
+      formData.append("images", file); 
+    });
+
     await onSubmit(formData);
   };
 
-  const getRatingLabel = (val) => {
-    const labels = { 1: "Poor", 2: "Fair", 3: "Average", 4: "Good", 5: "Excellent" };
-    return labels[val] || "";
-  };
-
   return (
-    <div className="fixed inset-0 bg-neutral-900/40 backdrop-blur-md flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-[450px] p-10 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95 duration-300">
-        
-        {/* Close Button */}
+    <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-md flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-300">
+      <div className="bg-white w-full max-w-md p-10 rounded-[3rem] shadow-2xl relative animate-in zoom-in-95 duration-300">
         <button 
           onClick={onClose} 
-          className="absolute right-8 top-8 p-2 text-neutral-400 hover:text-black hover:bg-neutral-50 rounded-full transition-all"
+          className="absolute right-8 top-8 p-2 text-neutral-400 hover:text-black transition-colors"
         >
           <X size={20} />
         </button>
 
-        {/* Header */}
-        <div className="text-center mb-10">
-          <p className="text-[10px] tracking-[0.4em] text-neutral-400 uppercase font-bold mb-3">Community Input</p>
-          <h2 className="text-3xl font-serif italic text-neutral-900">Write a Review</h2>
+        <div className="text-center mb-8">
+          <p className="text-[10px] tracking-[0.4em] text-neutral-400 uppercase font-bold mb-2">Feedback</p>
+          <h2 className="text-2xl font-serif italic text-neutral-900">Share Your Story</h2>
         </div>
 
-        {/* Star Rating Section */}
-        <div className="flex flex-col items-center gap-3 mb-10">
-          <div className="flex gap-1.5">
+        {/* Star Selection */}
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <div className="flex gap-1">
             {[1, 2, 3, 4, 5].map((s) => (
               <button 
                 key={s} 
+                type="button"
                 onClick={() => setRating(s)} 
                 onMouseEnter={() => setHoverRating(s)} 
                 onMouseLeave={() => setHoverRating(0)}
                 className="transition-transform hover:scale-110 active:scale-90"
               >
                 <Star 
-                  size={36} 
-                  strokeWidth={1.5}
-                  className={(hoverRating || rating) >= s 
-                    ? "text-amber-500 fill-amber-500 transition-colors duration-200" 
-                    : "text-neutral-200 transition-colors duration-200"
-                  } 
+                  size={32} 
+                  className={(hoverRating || rating) >= s ? "text-amber-500 fill-amber-500" : "text-neutral-200"} 
                 />
               </button>
             ))}
           </div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 h-4">
-            {getRatingLabel(hoverRating || rating)}
+            {hoverRating || rating === 5 ? "Excellent" : rating === 4 ? "Good" : "Average"}
           </p>
         </div>
 
-        {/* Comment Input */}
-        <div className="relative mb-6">
-          <textarea 
-            value={comment} 
-            onChange={(e) => setComment(e.target.value)} 
-            placeholder="Tell us what you liked or didn't like..." 
-            className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl p-6 text-sm h-40 outline-none focus:border-neutral-300 focus:bg-white transition-all resize-none font-light italic" 
-          />
-        </div>
+        <textarea 
+          value={comment} 
+          onChange={(e) => setComment(e.target.value)} 
+          placeholder="How was the quality? The fit? The feel?..." 
+          className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl p-6 text-sm h-36 outline-none focus:border-neutral-300 focus:bg-white transition-all resize-none italic font-light" 
+        />
 
-        {/* Image Upload Section */}
-        <div className="mb-10">
-          <p className="text-[9px] uppercase tracking-widest text-neutral-400 font-bold mb-4">Add Photos ({images.length}/5)</p>
-          <div className="flex flex-wrap gap-3">
-            <label className="w-16 h-16 border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center rounded-2xl cursor-pointer hover:bg-neutral-50 hover:border-neutral-400 transition-all group">
-              <Camera size={20} className="text-neutral-300 group-hover:text-neutral-500 transition-colors" />
-              <input 
-                type="file" 
-                multiple 
-                accept="image/*" 
-                onChange={handleImageChange} 
-                className="hidden" 
-              />
+        {/* Image Upload Area */}
+        <div className="mt-6">
+          <p className="text-[9px] uppercase tracking-widest text-neutral-400 font-bold mb-3">Add Photos ({images.length}/5)</p>
+          <div className="flex flex-wrap gap-2">
+            <label className="w-14 h-14 border-2 border-dashed border-neutral-200 flex items-center justify-center rounded-xl cursor-pointer hover:bg-neutral-50 hover:border-neutral-400 transition-all group">
+              <Camera size={18} className="text-neutral-300 group-hover:text-neutral-500" />
+              <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
             </label>
 
             {previews.map((src, i) => (
-              <div key={i} className="relative group w-16 h-16">
-                <img 
-                  src={src} 
-                  className="w-full h-full object-cover rounded-2xl border border-neutral-100" 
-                  alt="Preview" 
-                />
+              <div key={i} className="relative w-14 h-14 group">
+                <img src={src} className="w-full h-full object-cover rounded-xl border border-neutral-100" alt="Preview" />
                 <button 
                   onClick={() => removeImage(i)}
-                  className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity border border-neutral-100 hover:bg-red-50"
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <X size={12} strokeWidth={3} />
+                  <X size={10} />
                 </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Submit Button */}
         <button 
           onClick={handleSubmit} 
           disabled={loading} 
-          className="w-full group relative overflow-hidden py-5 bg-neutral-900 text-white rounded-2xl text-[10px] font-bold uppercase tracking-[0.3em] transition-all hover:shadow-2xl hover:shadow-neutral-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full mt-10 py-5 bg-neutral-900 text-white rounded-2xl text-[10px] font-bold uppercase tracking-[0.3em] transition-all hover:bg-black active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-neutral-100"
         >
-          <span className="relative z-10 flex items-center justify-center gap-2">
-            {loading ? (
-              <>
-                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Processing...
-              </>
-            ) : "Submit Feedback"}
-          </span>
-          <div className="absolute inset-0 bg-neutral-800 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+          {loading ? "Uploading..." : "Submit Review"}
         </button>
       </div>
     </div>
