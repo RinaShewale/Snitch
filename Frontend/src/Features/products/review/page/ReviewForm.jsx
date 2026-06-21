@@ -18,16 +18,21 @@ export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
 
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files || []);
+
         if (images.length + files.length > 5) {
             alert("You can upload a maximum of 5 images.");
             return;
         }
+
+        const newPreviews = files.map(f => URL.createObjectURL(f));
+
         setImages((prev) => [...prev, ...files]);
-        setPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+        setPreviews((prev) => [...prev, ...newPreviews]);
     };
 
     const removeImage = (index) => {
         URL.revokeObjectURL(previews[index]);
+
         setImages((prev) => prev.filter((_, i) => i !== index));
         setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
@@ -37,50 +42,62 @@ export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
         onClose();
     };
 
+    // ⭐ FIXED SUBMIT LOGIC (MAIN FIX)
     const handleSubmit = async () => {
-        if (!comment.trim()) return alert("Please write a comment");
+        if (!comment.trim()) {
+            alert("Please write a comment");
+            return;
+        }
 
         const formData = new FormData();
 
-        formData.append("rating", rating);
+        formData.append("productId", productId);
+        formData.append("rating", Number(rating)); // IMPORTANT FIX
         formData.append("comment", comment);
-        formData.append("productId", productId); // IMPORTANT
 
         images.forEach((file) => {
             formData.append("images", file);
         });
 
-        await onSubmit(formData);
+        try {
+            await onSubmit(formData); // MUST pass FormData directly
 
-        setComment("");
-        setRating(5);
-        setImages([]);
-        setPreviews([]);
-        onClose();
+            // reset
+            setComment("");
+            setRating(5);
+            setImages([]);
+            setPreviews([]);
+            handleClose();
+        } catch (err) {
+            console.log("Submit error:", err);
+        }
     };
 
     return (
-        <div className="fixed inset-0 bg-[#111111]/35 backdrop-blur-sm flex items-center justify-center z-[100] p-4 transition-all duration-300 animate-fadeIn">
-            <div className="bg-[#FAFAFA] border border-[#1a1714]/10 w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl relative scale-100 transition-all duration-300">
+        <div className="fixed inset-0 bg-[#111111]/35 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <div className="bg-[#FAFAFA] border border-[#1a1714]/10 w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl relative">
 
-                {/* Close Button */}
+                {/* Close */}
                 <button
                     onClick={handleClose}
-                    className="absolute right-6 top-6 text-neutral-400 hover:text-black transition-colors"
+                    className="absolute right-6 top-6 text-neutral-400 hover:text-black"
                 >
                     <X size={18} />
                 </button>
 
                 {/* Header */}
                 <div className="text-center mb-6">
-                    <span className="text-[9px] uppercase tracking-[0.3em] font-bold text-neutral-400 block mb-2">Write Review</span>
-                    <h2 className="text-2xl font-serif italic text-[#1a1714]">Share Your Experience</h2>
+                    <span className="text-[9px] uppercase tracking-[0.3em] font-bold text-neutral-400 block mb-2">
+                        Write Review
+                    </span>
+                    <h2 className="text-2xl font-serif italic text-[#1a1714]">
+                        Share Your Experience
+                    </h2>
                 </div>
 
-                {/* Rating Selector */}
+                {/* Rating */}
                 <div className="flex flex-col items-center gap-2 my-6">
-                    <span className="text-[9px] uppercase tracking-widest font-black text-[#1a1714]/60">Your Rating</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex gap-1.5">
                         {[1, 2, 3, 4, 5].map((star) => (
                             <button
                                 key={star}
@@ -88,82 +105,74 @@ export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
                                 onClick={() => setRating(star)}
                                 onMouseEnter={() => setHoverRating(star)}
                                 onMouseLeave={() => setHoverRating(0)}
-                                className="transition-transform duration-100 hover:scale-120 focus:outline-none"
                             >
                                 <Star
                                     size={32}
                                     strokeWidth={1}
-                                    className={`${star <= (hoverRating || rating)
+                                    className={
+                                        star <= (hoverRating || rating)
                                             ? "text-amber-500 fill-amber-500"
-                                            : "text-neutral-300 fill-transparent"
-                                        } transition-colors duration-150`}
+                                            : "text-neutral-300"
+                                    }
                                 />
                             </button>
                         ))}
                     </div>
-                    <p className="text-[9.5px] font-bold text-neutral-500 h-4 mt-1.5 transition-all duration-300">
-                        {ratingTexts[hoverRating || rating] || ""}
+
+                    <p className="text-[10px] text-neutral-500">
+                        {ratingTexts[hoverRating || rating]}
                     </p>
                 </div>
 
-                {/* Comment field */}
-                <div className="space-y-2 mb-6">
-                    <label className="text-[9px] uppercase tracking-widest font-black text-[#1a1714]/60">Your Review</label>
-                    <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Write your review here... How did it fit? How is the material?"
-                        className="w-full bg-white border border-[#1a1714]/10 rounded-2xl p-4 text-xs h-28 focus:outline-none focus:border-black transition-colors resize-none placeholder:text-neutral-400 leading-relaxed font-light"
-                    />
+                {/* Comment */}
+                <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Write your review..."
+                    className="w-full border p-4 rounded-2xl text-xs h-28"
+                />
+
+                {/* Images */}
+                <div className="flex flex-wrap gap-3 mt-4">
+                    {images.length < 5 && (
+                        <div className="w-16 h-16 border-dashed border-2 flex items-center justify-center relative rounded-xl">
+                            <Camera size={18} />
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                        </div>
+                    )}
+
+                    {previews.map((src, idx) => (
+                        <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden">
+                            <img src={src} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => removeImage(idx)}
+                                className="absolute inset-0 bg-black/50 text-white opacity-0 hover:opacity-100"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                    ))}
                 </div>
 
-                {/* Image Upload Widget */}
-                <div className="space-y-3 mb-8">
-                    <label className="text-[9px] uppercase tracking-widest font-black text-[#1a1714]/60 block">
-                        Upload Images (Optional, Max 5)
-                    </label>
-                    <div className="flex flex-wrap gap-3 items-center">
-                        {images.length < 5 && (
-                            <div className="relative w-16 h-16 rounded-2xl border-2 border-dashed border-neutral-200 hover:border-black/35 flex flex-col items-center justify-center text-neutral-400 hover:text-neutral-600 transition-all cursor-pointer bg-white">
-                                <Camera size={18} className="mb-0.5 text-neutral-400" />
-                                <span className="text-[8px] font-bold uppercase tracking-wider">Add</span>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={handleImageChange}
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                />
-                            </div>
-                        )}
-
-                        {previews.map((src, idx) => (
-                            <div key={idx} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-neutral-200 group animate-fadeIn">
-                                <img src={src} className="w-full h-full object-cover" alt={`Preview ${idx}`} />
-                                <button
-                                    type="button"
-                                    onClick={() => removeImage(idx)}
-                                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150"
-                                >
-                                    <X size={14} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-4">
+                {/* Buttons */}
+                <div className="flex gap-3 mt-6">
                     <button
                         onClick={handleClose}
-                        className="flex-1 py-4 border border-[#1a1714]/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#1a1714]/5 transition-colors duration-300"
+                        className="flex-1 border rounded-2xl py-3 text-xs"
                     >
                         Cancel
                     </button>
+
                     <button
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="flex-1 bg-[#1a1714] text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black transition-all hover:-translate-y-0.5 duration-300 disabled:opacity-50 disabled:translate-y-0 flex items-center justify-center gap-2"
+                        className="flex-1 bg-black text-white rounded-2xl py-3 text-xs"
                     >
                         {loading ? "Posting..." : "Submit Review"}
                     </button>
