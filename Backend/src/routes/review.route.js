@@ -5,19 +5,19 @@ import {
 } from "../controller/review.controller.js";
 
 import { protect } from "../middlewares/auth.middleware.js";
-import { upload } from "../services/multer.js"; // 👈 your service path
+import { upload } from "../services/multer.js";
 
 const router = express.Router();
 
-// ➤ CREATE REVIEW (WITH IMAGES SUPPORT)
+// ✅ FINAL FIX ROUTE (IMPORTANT)
 router.post(
   "/",
   protect,
-  upload.array("images", 5), // up to 5 images
+  upload.fields([{ name: "images", maxCount: 5 }]),
   createReview
 );
 
-// ➤ GET REVIEWS FOR A PRODUCT
+// GET REVIEWS
 router.get("/:productId", getProductReviews);
 
 export default router;

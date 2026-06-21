@@ -7,38 +7,15 @@ const reviewSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
-
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
-    name: {
-      type: String,
-      required: true,
-    },
-
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5,
-    },
-
-    comment: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    // ⭐ NEW: IMAGES SUPPORT
-    images: [
-      {
-        url: String,
-        fileId: String,
-      },
-    ],
+    // REMOVE THE "name: Anonymous" line from here!
+    rating: { type: Number, required: true },
+    comment: { type: String, required: true },
+    images: [{ url: String, fileId: String }],
   },
   { timestamps: true }
 );

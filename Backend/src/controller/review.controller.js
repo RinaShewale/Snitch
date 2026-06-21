@@ -1,115 +1,54 @@
 import Review from "../models/review.model.js";
+import User from "../models/user.model.js"; 
 import { uploadFile } from "../services/storage.service.js";
 
 export const createReview = async (req, res) => {
   try {
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
-
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Not authorized ❌",
-      });
-    }
-
-    const { productId, rating, comment } = req.body;
-
-    if (!productId || rating === undefined || !comment?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing fields ❌",
-      });
-    }
-
-    const parsedRating = Number(rating);
-
-    if (isNaN(parsedRating)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid rating ❌",
-      });
-    }
-
-    let images = [];
-
-    if (Array.isArray(req.files) && req.files.length > 0) {
-      for (const file of req.files) {
-        try {
-          if (!file?.buffer) continue;
-
-          const result = await uploadFile({
-            buffer: file.buffer,
-            fileName: file.originalname,
-            folder: "reviews",
-          });
-
-          if (result?.url) {
-            images.push({
-              url: result.url,
-              fileId: result.fileId,
-            });
-          }
-        } catch (err) {
-          console.log("Image upload failed:", err.message);
-        }
-      }
-    }
-
-    const review = await Review.create({
+    const { productId, comment, rating } = req.body;
+    
+    // 1. Create the review
+    const newReview = await Review.create({
       productId,
-      userId: user._id,
-      name: user?.name || "Anonymous",
-      rating: parsedRating,
+      userId: req.user._id,
+      rating: Number(rating),
       comment,
-      images,
+      images: req.body.images || [], 
     });
+
+    // 2. FETCH & POPULATE
+    const populatedReview = await Review.findById(newReview._id)
+      .populate({
+        path: "userId",
+        select: "fullName email avatar" // Explicitly get these 3 fields
+      })
+      .lean();
 
     return res.status(201).json({
       success: true,
-      message: "Review created successfully ✅",
-      review,
+      review: populatedReview,
     });
-
-  } catch (error) {
-    console.log("CREATE REVIEW ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Internal Server Error",
-    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 export const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    if (!productId) {
-      return res.status(400).json({
-        success: false,
-        message: "productId required ❌",
-      });
-    }
-
     const reviews = await Review.find({ productId })
-      .populate("userId", "name email")
-      .sort({ createdAt: -1 });
+      .populate({
+        path: "userId",
+        select: "fullName email avatar"
+      })
+      .sort("-createdAt")
+      .lean();
 
     return res.status(200).json({
       success: true,
-      reviews: reviews || [],
+      reviews,
     });
-
-  } catch (error) {
-    console.log("❌ GET REVIEWS ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

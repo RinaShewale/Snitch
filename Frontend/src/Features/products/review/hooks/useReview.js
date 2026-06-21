@@ -20,33 +20,23 @@ export const useReview = (productId) => {
     };
   }, [productId, dispatch]);
 
-  // ➤ Submit review
-  const submitReview = async ({ productId, rating, comment, images }) => {
+  // ➤ Submit review (FIXED)
+  const submitReview = async (formData) => {
     try {
-      const formData = new FormData();
-
-      formData.append("productId", productId);
-      formData.append("rating", rating);
-      formData.append("comment", comment);
-
-      if (images?.length) {
-        images.forEach((file) => {
-          formData.append("images", file);
-        });
-      }
-
+      // ❌ DON'T rebuild FormData again (you already made it)
       const res = await dispatch(addReview(formData));
 
       if (addReview.fulfilled.match(res)) {
         return res.payload;
       }
 
-      throw new Error("Review failed");
+      throw new Error(res.payload || "Review failed");
     } catch (err) {
       console.error("Submit Review Error:", err);
       throw err;
     }
   };
+  
 
   return {
     reviews: items,

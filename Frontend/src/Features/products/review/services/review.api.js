@@ -6,6 +6,7 @@ export const createReviewAPI = async (formData) => {
     headers: {
       "Content-Type": "multipart/form-data",
     },
+    withCredentials: true,
   });
 };
 

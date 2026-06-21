@@ -46,12 +46,13 @@ const reviewSlice = createSlice({
     clearReviews: (state) => {
       state.items = [];
       state.error = null;
+      state.loading = false;
     },
   },
 
   extraReducers: (builder) => {
     builder
-      // FETCH
+      // ➤ FETCH
       .addCase(fetchReviews.pending, (state) => {
         state.loading = true;
       })
@@ -64,11 +65,16 @@ const reviewSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ADD
+      // ➤ ADD
+      .addCase(addReview.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(addReview.fulfilled, (state, action) => {
+        state.loading = false;
         state.items.unshift(action.payload);
       })
       .addCase(addReview.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       });
   },
