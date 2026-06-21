@@ -44,34 +44,28 @@ export default function ReviewForm({ onSubmit, onClose, loading, productId }) {
 
     // ⭐ FIXED SUBMIT LOGIC (MAIN FIX)
     const handleSubmit = async () => {
-        if (!comment.trim()) {
-            alert("Please write a comment");
-            return;
-        }
+        if (!comment.trim()) return alert("Please write a comment");
 
         const formData = new FormData();
 
-        formData.append("productId", productId);
-        formData.append("rating", Number(rating)); // IMPORTANT FIX
+        formData.append("rating", String(rating));   // ✅ force string
         formData.append("comment", comment);
+        formData.append("productId", productId);
 
         images.forEach((file) => {
             formData.append("images", file);
         });
 
-        try {
-            await onSubmit(formData); // MUST pass FormData directly
+        await onSubmit(formData);
 
-            // reset
-            setComment("");
-            setRating(5);
-            setImages([]);
-            setPreviews([]);
-            handleClose();
-        } catch (err) {
-            console.log("Submit error:", err);
-        }
+        setComment("");
+        setRating(5);
+        setImages([]);
+        setPreviews([]);
+        onClose();
     };
+
+    
 
     return (
         <div className="fixed inset-0 bg-[#111111]/35 backdrop-blur-sm flex items-center justify-center z-[100] p-4">

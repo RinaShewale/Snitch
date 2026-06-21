@@ -10,13 +10,24 @@ export default function ProductReviewSection({ productId }) {
   const [submitting, setSubmitting] = useState(false);
   const [zoomImage, setZoomImage] = useState(null);
 
-  const handleSubmit = async (data) => {
+  const handleSubmit = async (formData) => {
     try {
       setSubmitting(true);
-      await submitReview({
-        productId,
-        ...data,
-      });
+
+      const rating = formData.get("rating");
+      const comment = formData.get("comment");
+
+      if (!rating || !comment) {
+        throw new Error("Missing rating or comment");
+      }
+
+      formData.set("rating", Number(rating));
+
+      // ❗ ADD THIS (IMPORTANT)
+      formData.set("name", "Anonymous User"); // or actual user name from auth
+
+      await submitReview(formData);
+
     } catch (err) {
       console.log(err);
     } finally {
@@ -24,6 +35,7 @@ export default function ProductReviewSection({ productId }) {
     }
   };
 
+  
   // Helper: Get Initials from Name
   const getInitials = (name) => {
     if (!name) return "U";

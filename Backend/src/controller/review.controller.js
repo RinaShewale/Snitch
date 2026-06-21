@@ -3,7 +3,6 @@ import { uploadFile } from "../services/storage.service.js";
 
 export const createReview = async (req, res) => {
   try {
-    // ✅ debug (keep for now)
     console.log("BODY:", req.body);
     console.log("FILES:", req.files);
 
@@ -18,16 +17,24 @@ export const createReview = async (req, res) => {
 
     const { productId, rating, comment } = req.body;
 
-    if (!productId || !rating || !comment) {
+    if (!productId || rating === undefined || !comment?.trim()) {
       return res.status(400).json({
         success: false,
         message: "Missing fields ❌",
       });
     }
 
+    const parsedRating = Number(rating);
+
+    if (isNaN(parsedRating)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid rating ❌",
+      });
+    }
+
     let images = [];
 
-    // ✅ SAFE IMAGE HANDLING (NO CRASH EVER)
     if (Array.isArray(req.files) && req.files.length > 0) {
       for (const file of req.files) {
         try {
@@ -46,7 +53,6 @@ export const createReview = async (req, res) => {
             });
           }
         } catch (err) {
-          // ❌ never break API
           console.log("Image upload failed:", err.message);
         }
       }
@@ -55,8 +61,8 @@ export const createReview = async (req, res) => {
     const review = await Review.create({
       productId,
       userId: user._id,
-      name: user.name,
-      rating: Number(rating),
+      name: user?.name || "Anonymous",
+      rating: parsedRating,
       comment,
       images,
     });
@@ -76,7 +82,6 @@ export const createReview = async (req, res) => {
     });
   }
 };
-
 
 
 export const getProductReviews = async (req, res) => {
