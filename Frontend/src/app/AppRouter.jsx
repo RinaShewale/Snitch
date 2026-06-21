@@ -40,6 +40,7 @@ import SellerOrders from "../Features/products/seller/components/SellerOrders";
 import ProtectedRoute from "../Features/auth/components/ProtectedRoute";
 import AddressPage from "../Features/auth/components/AddressPage";
 import { ProductDetailPage } from "../Features/Home/pages/ProductDetailPage";
+import OrderSuccessPage from "../Features/products/cart/pages/OrderSuccessPage";
 
 
 // 🧠 SIMPLE GUARD (for address)
@@ -86,6 +87,11 @@ const router = createBrowserRouter([
             <OrderDetails />
           </ProtectedRoute>
         ),
+      },
+
+      {
+        path: "/order-success",
+        element: <OrderSuccessPage />,
       },
 
       // ================= SELLER =================

@@ -3,14 +3,14 @@ import { useSelector, useDispatch } from "react-redux";
 import { useRazorpay } from "react-razorpay";
 import { useNavigate } from "react-router-dom";
 import { createOrderAPI, verifyPaymentAPI } from "../services/cart.api";
-import { 
-  Minus, Plus, Trash2, ArrowLeft, ShoppingBag, 
-  MoveRight, ShieldCheck, Loader2, AlertCircle 
+import {
+  Minus, Plus, Trash2, ArrowLeft, ShoppingBag,
+  MoveRight, ShieldCheck, Loader2, AlertCircle
 } from "lucide-react";
 import gsap from "gsap";
-import { 
-  increaseCart, decreaseCart, removeFromCart, 
-  fetchCart, clearCart 
+import {
+  increaseCart, decreaseCart, removeFromCart,
+  fetchCart, clearCart
 } from "../redux/cart.slice";
 
 const CartPage = () => {
@@ -88,18 +88,21 @@ const CartPage = () => {
         order_id: order.id,
         handler: async function (response) {
           try {
-            // 2. Verify payment
             await verifyPaymentAPI({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
 
-            // 3. SUCCESS: Clear UI immediately & Sync with server
-            dispatch(clearCart()); 
-            await dispatch(fetchCart()); 
-            
-            navigate("/orders");
+            // ✅ clear redux cart ONLY
+            dispatch(clearCart());
+
+            // optional safety: reset loading
+            setPaymentLoading(false);
+
+            // ✅ correct route
+            navigate("/order-success", { replace: true });
+
           } catch (err) {
             console.error("Verification failed", err);
             alert("Payment verification failed.");
@@ -148,8 +151,8 @@ const CartPage = () => {
               <div className="mb-12 reveal bg-white/40 backdrop-blur-sm p-6 border border-[#1a1714]/5">
                 <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold mb-4">
                   <span className="opacity-80">
-                    {progress < 100 
-                      ? `Spend ₹${(freeShippingLimit - safeTotal).toLocaleString()} more for free shipping` 
+                    {progress < 100
+                      ? `Spend ₹${(freeShippingLimit - safeTotal).toLocaleString()} more for free shipping`
                       : "Complimentary shipping applied"}
                   </span>
                   <span>{Math.round(progress)}%</span>
@@ -161,11 +164,11 @@ const CartPage = () => {
 
               <div className="space-y-6">
                 {cartItems.map((item) => (
-                  <CartItem 
-                    key={item._id} 
-                    item={item} 
-                    onAction={handleCartAction} 
-                    isUpdating={activeItemId === item._id} 
+                  <CartItem
+                    key={item._id}
+                    item={item}
+                    onAction={handleCartAction}
+                    isUpdating={activeItemId === item._id}
                   />
                 ))}
               </div>
@@ -176,15 +179,15 @@ const CartPage = () => {
               <div className="lg:sticky lg:top-10 space-y-6">
                 <div className="bg-white p-8 md:p-10 shadow-sm border border-[#1a1714]/5">
                   <h2 className="text-xl font-serif italic mb-8 border-b border-[#1a1714]/5 pb-4">Summary</h2>
-                  
+
                   <div className="space-y-4 text-[11px] uppercase tracking-widest font-bold mb-8">
                     <div className="flex justify-between opacity-60">
-                        <span>Subtotal</span>
-                        <span>₹{safeTotal.toLocaleString()}</span>
+                      <span>Subtotal</span>
+                      <span>₹{safeTotal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between opacity-60">
-                        <span>Shipping</span>
-                        <span>{safeTotal > freeShippingLimit ? "Free" : "Calculated"}</span>
+                      <span>Shipping</span>
+                      <span>{safeTotal > freeShippingLimit ? "Free" : "Calculated"}</span>
                     </div>
                   </div>
 
@@ -221,70 +224,70 @@ const CartPage = () => {
 ====================== */
 
 const CartItem = memo(({ item, onAction, isUpdating }) => {
-    // Determine price to show
-    const displayPrice = item.selectedVariant?.price?.amount || item.product?.price?.amount || item.price?.amount || 0;
+  // Determine price to show
+  const displayPrice = item.selectedVariant?.price?.amount || item.product?.price?.amount || item.price?.amount || 0;
 
-    return (
-        <div className="reveal group bg-white/40 hover:bg-white transition-all duration-500 p-4 md:p-6 flex gap-6 md:gap-8 border border-[#1a1714]/5 rounded-sm relative">
-            {isUpdating && (
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-[#1a1714] animate-pulse"></div>
+  return (
+    <div className="reveal group bg-white/40 hover:bg-white transition-all duration-500 p-4 md:p-6 flex gap-6 md:gap-8 border border-[#1a1714]/5 rounded-sm relative">
+      {isUpdating && (
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-[#1a1714] animate-pulse"></div>
+      )}
+
+      <div className="w-24 h-32 md:w-32 md:h-44 bg-[#f0edea] overflow-hidden flex-shrink-0">
+        <img
+          src={item.selectedVariant?.images?.[0]?.url || item.product?.images?.[0]?.url}
+          alt={item.product?.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col justify-between py-1">
+        <div>
+          <div className="flex justify-between items-start">
+            <h3 className="text-sm md:text-xl font-serif italic uppercase">{item.product?.title}</h3>
+            <p className="text-sm md:text-lg font-medium">₹{displayPrice.toLocaleString()}</p>
+          </div>
+          <div className="flex gap-4 mt-2">
+            {item.selectedAttributes?.size && (
+              <p className="text-[9px] uppercase tracking-widest font-bold opacity-40">Size: {item.selectedAttributes.size}</p>
             )}
-            
-            <div className="w-24 h-32 md:w-32 md:h-44 bg-[#f0edea] overflow-hidden flex-shrink-0">
-                <img 
-                    src={item.selectedVariant?.images?.[0]?.url || item.product?.images?.[0]?.url} 
-                    alt={item.product?.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-            </div>
-
-            <div className="flex-1 flex flex-col justify-between py-1">
-                <div>
-                    <div className="flex justify-between items-start">
-                        <h3 className="text-sm md:text-xl font-serif italic uppercase">{item.product?.title}</h3>
-                        <p className="text-sm md:text-lg font-medium">₹{displayPrice.toLocaleString()}</p>
-                    </div>
-                    <div className="flex gap-4 mt-2">
-                        {item.selectedAttributes?.size && (
-                            <p className="text-[9px] uppercase tracking-widest font-bold opacity-40">Size: {item.selectedAttributes.size}</p>
-                        )}
-                        {item.selectedAttributes?.color && (
-                            <p className="text-[9px] uppercase tracking-widest font-bold opacity-40">Color: {item.selectedAttributes.color}</p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-6">
-                    <div className="flex items-center border border-[#1a1714]/10 rounded-full px-2 py-1 bg-white">
-                        <button 
-                            disabled={item.quantity <= 1 || isUpdating}
-                            onClick={() => onAction(decreaseCart, { itemId: item._id, quantity: 1 }, item._id)}
-                            className="p-2 hover:opacity-50 transition-opacity disabled:opacity-10"
-                        >
-                            <Minus size={12} />
-                        </button>
-                        <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
-                        <button 
-                            disabled={isUpdating}
-                            onClick={() => onAction(increaseCart, { itemId: item._id, quantity: 1 }, item._id)}
-                            className="p-2 hover:opacity-50 transition-opacity disabled:opacity-10"
-                        >
-                            <Plus size={12} />
-                        </button>
-                    </div>
-
-                    <button 
-                        disabled={isUpdating}
-                        onClick={() => onAction(removeFromCart, item._id, item._id)}
-                        className="flex items-center gap-2 text-[9px] uppercase font-bold text-red-800/60 hover:text-red-800 transition-colors"
-                    >
-                        <Trash2 size={12} />
-                        <span className="tracking-widest">Remove</span>
-                    </button>
-                </div>
-            </div>
+            {item.selectedAttributes?.color && (
+              <p className="text-[9px] uppercase tracking-widest font-bold opacity-40">Color: {item.selectedAttributes.color}</p>
+            )}
+          </div>
         </div>
-    );
+
+        <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center border border-[#1a1714]/10 rounded-full px-2 py-1 bg-white">
+            <button
+              disabled={item.quantity <= 1 || isUpdating}
+              onClick={() => onAction(decreaseCart, { itemId: item._id, quantity: 1 }, item._id)}
+              className="p-2 hover:opacity-50 transition-opacity disabled:opacity-10"
+            >
+              <Minus size={12} />
+            </button>
+            <span className="w-8 text-center text-xs font-bold">{item.quantity}</span>
+            <button
+              disabled={isUpdating}
+              onClick={() => onAction(increaseCart, { itemId: item._id, quantity: 1 }, item._id)}
+              className="p-2 hover:opacity-50 transition-opacity disabled:opacity-10"
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+
+          <button
+            disabled={isUpdating}
+            onClick={() => onAction(removeFromCart, item._id, item._id)}
+            className="flex items-center gap-2 text-[9px] uppercase font-bold text-red-800/60 hover:text-red-800 transition-colors"
+          >
+            <Trash2 size={12} />
+            <span className="tracking-widest">Remove</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 });
 
 const EmptyState = ({ onExplore }) => (
