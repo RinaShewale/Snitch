@@ -13,7 +13,7 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  upload.fields([{ name: "images", maxCount: 5 }]),
+  upload.array("images", 5),
   createReview
 );
 
