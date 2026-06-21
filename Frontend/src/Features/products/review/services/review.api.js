@@ -1,8 +1,12 @@
 import API from "../../../auth/services/api"; // your axios instance
 
-// ➤ Create Review
-export const createReviewAPI = async (data) => {
-  return await API.post("/reviews", data);
+// ➤ Create Review (with images support via multipart/form-data)
+export const createReviewAPI = async (formData) => {
+  return await API.post("/reviews", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 };
 
 // ➤ Get Reviews by Product

@@ -21,10 +21,22 @@ export const useReview = (productId) => {
     };
   }, [productId, dispatch]);
 
-  // ➤ Submit review (with proper error handling)
-  const submitReview = async (data) => {
+  // ➤ Submit review (with proper error handling and FormData construction)
+  const submitReview = async ({ productId, rating, comment, images }) => {
     try {
-      const res = await dispatch(addReview(data));
+      const formData = new FormData();
+      formData.append("productId", productId);
+      formData.append("rating", Number(rating));
+      formData.append("comment", comment);
+
+      // Append image files if they exist
+      if (images && images.length > 0) {
+        images.forEach((file) => {
+          formData.append("images", file);
+        });
+      }
+
+      const res = await dispatch(addReview(formData));
 
       // Redux thunk response unwrap
       if (addReview.fulfilled.match(res)) {
