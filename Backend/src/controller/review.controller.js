@@ -19,12 +19,14 @@ export const createReview = async (req, res) => {
 
       const results = await Promise.all(uploadPromises);
 
+        console.log("UPLOAD RESULTS:", results); 
+
       imageUrls = results.map((result) => ({
         url: result.url,
       }));
     }
 
-    
+
     const newReview = await Review.create({
       productId,
       userId: req.user._id,
