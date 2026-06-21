@@ -2,23 +2,28 @@ import nodemailer from "nodemailer";
 import dns from "dns";
 import { config } from "../config/config.js";
 
-// ⭐ FORCE IPV4 (fixes ENETUNREACH on Render)
+// Force IPv4
 dns.setDefaultResultOrder("ipv4first");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587, // ⭐ safer for cloud servers
-  secure: false, // TLS (NOT SSL)
+  port: 587,
+  secure: false,
   auth: {
     user: config.EMAIL_USER,
-    pass: config.EMAIL_PASS, // Gmail App Password only
+    pass: config.EMAIL_PASS,
+  },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
-// Optional debug (safe to keep in dev)
 transporter.verify((error) => {
   if (error) {
-    console.log("❌ Mailer error:", error.message);
+    console.log("❌ Mailer error:", error);
   } else {
     console.log("✅ Mailer is ready");
   }
