@@ -41,6 +41,8 @@ import ProtectedRoute from "../Features/auth/components/ProtectedRoute";
 import AddressPage from "../Features/auth/components/AddressPage";
 import { ProductDetailPage } from "../Features/Home/pages/ProductDetailPage";
 import OrderSuccessPage from "../Features/products/cart/pages/OrderSuccessPage";
+import StoryPage from "../Features/Home/components/StoryPage";
+
 
 
 // 🧠 SIMPLE GUARD (for address)
@@ -70,6 +72,7 @@ const router = createBrowserRouter([
       { path: "/category/:group", element: <CategoryGroupPage /> },
       { path: "/search", element: <SearchPage /> },
       { path: "/wishlist", element: <WishlistPage /> },
+      { path: "/story", element: <StoryPage /> },
 
       // ================= ORDERS =================
       {
@@ -91,8 +94,8 @@ const router = createBrowserRouter([
 
       {
         path: "/order-success",
-        element: <OrderSuccessPage />,
-      },
+        element: requireAddress(<OrderSuccessPage />), // 👈 Wrap it here
+      }, ,
 
       // ================= SELLER =================
       {

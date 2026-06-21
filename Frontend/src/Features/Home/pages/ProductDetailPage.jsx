@@ -13,6 +13,7 @@ import { useWishlist } from "../../products/wishlist/hooks/useWishlist";
 // --- UPDATED IMPORTS ---
 import { useRazorpay } from "react-razorpay";
 import { createDirectOrderAPI, verifyPaymentAPI } from "../../products/cart/services/cart.api";
+import ProductReviewSection from "../../products/review/page/ProductReviewSection";
 
 export const ProductDetailPage = () => {
     const { id } = useParams();
@@ -219,7 +220,7 @@ export const ProductDetailPage = () => {
     };
 
 
-    
+
     const handleWishlistToggle = () => {
         toggleWishlist(id);
         gsap.fromTo(heartRef.current, { scale: 0.7 }, { scale: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" });
@@ -383,7 +384,10 @@ export const ProductDetailPage = () => {
                             </div>
                         </div>
                     </section>
+
+
                 </div>
+                <ProductReviewSection productId={id} />
             </main>
 
             <style>{`

@@ -12,6 +12,7 @@ import productRoutes from "./routes/product.route.js";
 import cartRoutes from "./routes/cart.route.js";
 import orderRoutes from "./routes/order.route.js";
 import wishlistRoute from "./routes/wishlist.route.js";
+import reviewRoutes from "./routes/review.route.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +44,8 @@ app.use("/api/product", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/wishlist", wishlistRoute);
+
+app.use("/api/reviews", reviewRoutes);
 
 // ======================
 // HEALTH CHECK
