@@ -134,7 +134,6 @@ export const ProductDetailPage = () => {
             console.log("2. Address from Storage:", addressData);
 
             if (!addressData) {
-                alert("Please add a shipping address in your profile first.");
                 navigate("/address");
                 return;
             }
