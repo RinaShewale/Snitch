@@ -183,7 +183,7 @@ export const ProductDetailPage = () => {
                             razorpay_signature: response.razorpay_signature,
                         });
                         dispatch(fetchCart());
-                        navigate("/orders");
+                        navigate("/order-success");
                     } catch (err) {
                         console.error("Verification Error:", err);
                         alert("Payment verification failed on server.");
