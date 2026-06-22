@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import gsap from 'gsap';
+import { useNavigate } from 'react-router-dom';
 
 const slides = [
   {
@@ -29,6 +30,8 @@ export default function HeroSlider() {
   const [index, setIndex] = useState(0);
   const progressRef = useRef(null);
   const containerRef = useRef(null);
+
+    const navigate = useNavigate();
 
   const nextSlide = useCallback(() => {
     setIndex((prev) => (prev + 1) % slides.length);
@@ -93,11 +96,11 @@ export default function HeroSlider() {
 
             <div className="hero-title flex items-center gap-8 pt-8">
               {/* Primary Button color updated */}
-              <button className="bg-[#1a1714] text-[#f5f1ec] px-10 py-4 text-[11px] uppercase tracking-widest hover:bg-[#1a1714]/90 transition-colors">
+              <button   onClick={() => navigate("/shop")} className="bg-[#1a1714] text-[#f5f1ec] px-10 py-4 text-[11px] uppercase tracking-widest hover:bg-[#1a1714]/90 transition-colors">
                 Shop Collection
               </button>
               {/* Secondary Button color updated */}
-              <button className="text-[#1a1714] text-[11px] uppercase tracking-widest border-b border-[#1a1714] pb-1 hover:opacity-50 transition">
+              <button onClick={() => navigate("/story")} className="text-[#1a1714] text-[11px] uppercase tracking-widest border-b border-[#1a1714] pb-1 hover:opacity-50 transition">
                 Lookbook
               </button>
             </div>

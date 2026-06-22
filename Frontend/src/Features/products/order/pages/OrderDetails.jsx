@@ -35,7 +35,7 @@ const OrderDetails = () => {
     return (
         <div ref={mainRef} className="min-h-screen bg-[#f5f1ec] text-[#1a1714] pt-32 pb-24 px-4 md:px-8 lg:px-12 selection:bg-[#1a1714] selection:text-[#f5f1ec]">
             <div className="max-w-7xl mx-auto">
-                <Link to="/orders" className="reveal opacity-0 translate-y-4 inline-flex items-center gap-2 text-[9px] uppercase tracking-[0.4em] mb-12 hover:opacity-50 transition-all duration-300">
+                <Link to="/my-orders" className="reveal opacity-0 translate-y-4 inline-flex items-center gap-2 text-[9px] uppercase tracking-[0.4em] mb-12 hover:opacity-50 transition-all duration-300">
                     <ArrowLeft size={12} /> Back to Manifest
                 </Link>
 
